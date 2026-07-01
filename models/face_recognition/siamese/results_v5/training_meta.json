@@ -1,0 +1,6 @@
+{
+  "last_epoch": 42,
+  "next_epoch": 43,
+  "latest_checkpoint": "C:\\Users\\Admin\\Desktop\\Project_DAT301m\\models\\face_recognition\\siamese\\results\\checkpoints\\latest\\ckpt-43",
+  "best_val": 0.11405449360609055
+}

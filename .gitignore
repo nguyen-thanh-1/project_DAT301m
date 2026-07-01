@@ -31,8 +31,8 @@ Thumbs.db
 
 # Training logs and checkpoints
 checkpoints/
-models/
-runs/
-wandb/
-tb_logs/
-logs/
+# models/
+# runs/
+# wandb/
+# tb_logs/
+# logs/
