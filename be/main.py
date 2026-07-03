@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 
 from be.services.face_service import process_attendance_frame, extract_embeddings, get_model, get_detector, warmup_models
 from be.services.face_service import process_attendance_frame, extract_embeddings, get_model, get_detector, warmup_models
-from be.services.anchor_store import register_anchor, get_all_anchors, identify_face, delete_anchor, load_store, add_image_to_anchor, remove_image_from_anchor
+from be.services.anchor_store import register_anchor, get_all_anchors, identify_face, delete_anchor, load_store, add_image_to_anchor, remove_image_from_anchor, identify_face_dual
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -239,6 +239,93 @@ async def process_attendance(image: UploadFile = File(...), method: str = Form("
             res["name"] = f"Unknown [trùng {name}]"
             
     return {"results": results}
+
+@app.post("/api/attendance/dual")
+async def process_attendance_dual(
+    image1: UploadFile = File(...), 
+    image2: UploadFile = File(...), 
+    method: str = Form("mean"), 
+    num_images: int = Form(3),
+    threshold: float = Form(0.5)
+):
+    if method not in ["one_shot", "mean", "average_cosine"]:
+        raise HTTPException(status_code=400, detail="Invalid method. Use 'one_shot', 'mean' or 'average_cosine'.")
+        
+    img1_bytes = await image1.read()
+    img2_bytes = await image2.read()
+    
+    bboxes1, faces_tensor1 = process_attendance_frame(img1_bytes)
+    bboxes2, faces_tensor2 = process_attendance_frame(img2_bytes)
+    
+    results_cam1 = []
+    results_cam2 = []
+    combined_results = []
+    
+    # Trường hợp cả 2 camera đều phát hiện được khuôn mặt
+    if len(bboxes1) > 0 and len(bboxes2) > 0:
+        embeddings1 = extract_embeddings(faces_tensor1)
+        embeddings2 = extract_embeddings(faces_tensor2)
+        
+        # Ghép cặp khuôn mặt chính (index 0) của 2 camera để tính trung bình
+        name, avg_score, s1, s2 = identify_face_dual(embeddings1[0], embeddings2[0], method=method, num_images=num_images, threshold=threshold)
+        
+        res1 = {
+            "bbox": bboxes1[0],
+            "name": name if name != "Unknown" else "Unknown",
+            "score": s1,
+            "avg_score": avg_score,
+            "cam": "Cam 1 (Trái)"
+        }
+        res2 = {
+            "bbox": bboxes2[0],
+            "name": name if name != "Unknown" else "Unknown",
+            "score": s2,
+            "avg_score": avg_score,
+            "cam": "Cam 2 (Phải)"
+        }
+        results_cam1.append(res1)
+        results_cam2.append(res2)
+        
+        combined_results.append({
+            "name": name,
+            "score": avg_score,
+            "score_cam1": s1,
+            "score_cam2": s2,
+            "cam": "TB 2 Cam"
+        })
+        
+        # Xử lý các khuôn mặt phụ khác (nếu có) trong ảnh bằng nhận diện đơn lẻ
+        for i in range(1, len(bboxes1)):
+            emb = embeddings1[i]
+            n, s = identify_face(emb, method=method, num_images=num_images)
+            results_cam1.append({"bbox": bboxes1[i], "name": n, "score": s, "cam": "Cam 1 (Trái)"})
+            
+        for i in range(1, len(bboxes2)):
+            emb = embeddings2[i]
+            n, s = identify_face(emb, method=method, num_images=num_images)
+            results_cam2.append({"bbox": bboxes2[i], "name": n, "score": s, "cam": "Cam 2 (Phải)"})
+            
+    elif len(bboxes1) > 0: # Chỉ Cam 1 thấy mặt
+        embeddings1 = extract_embeddings(faces_tensor1)
+        for i, bbox in enumerate(bboxes1):
+            n, s = identify_face(embeddings1[i], method=method, num_images=num_images)
+            res = {"bbox": bbox, "name": n, "score": s, "cam": "Cam 1 (Trái)"}
+            results_cam1.append(res)
+            combined_results.append({"name": n, "score": s, "cam": "Chỉ Cam 1"})
+            
+    elif len(bboxes2) > 0: # Chỉ Cam 2 thấy mặt
+        embeddings2 = extract_embeddings(faces_tensor2)
+        for i, bbox in enumerate(bboxes2):
+            n, s = identify_face(embeddings2[i], method=method, num_images=num_images)
+            res = {"bbox": bbox, "name": n, "score": s, "cam": "Cam 2 (Phải)"}
+            results_cam2.append(res)
+            combined_results.append({"name": n, "score": s, "cam": "Chỉ Cam 2"})
+            
+    return {
+        "results_cam1": results_cam1,
+        "results_cam2": results_cam2,
+        "results": combined_results
+    }
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

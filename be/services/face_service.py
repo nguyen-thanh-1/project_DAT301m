@@ -9,11 +9,15 @@ from PIL import Image
 
 _DETECTOR = None
 _MODEL = None
-_MODEL_PATH = os.path.join(
+_MODEL_PATH_1 = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "models", "face_recognition", "iresnet", "best_iresnet50_backbone.h5"
+)
+_MODEL_PATH_2 = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
     "models", "face_recognition", "iresnet", "results_iresnet50", "best_iresnet50_backbone.h5"
-    # "models", "face_recognition", "iresnet", "results_iresnet50",'backbones' , "backbone_epoch12.h5"
 )
+_MODEL_PATH = _MODEL_PATH_1 if os.path.exists(_MODEL_PATH_1) else _MODEL_PATH_2
 
 def get_detector():
     global _DETECTOR
@@ -92,8 +96,10 @@ def process_attendance_frame(img_bytes: bytes) -> Tuple[List[Dict[str, int]], np
     detector = get_detector()
     results = detector.detect_faces(img_np)
     
-    # Filter out weak detections
-    results = [res for res in results if res.get("confidence", 0) > 0.8]
+    # Filter out weak detections (nâng threshold lên 0.88 để loại bỏ nhiễu trên tường/cửa)
+    results = [res for res in results if res.get("confidence", 0) > 0.88]
+    # Sắp xếp theo diện tích khung hình (w * h) giảm dần để khuôn mặt chính (gần camera nhất) luôn là index 0
+    results.sort(key=lambda x: x["box"][2] * x["box"][3], reverse=True)
     
     bboxes = []
     face_crops = []

@@ -165,3 +165,59 @@ def remove_image_from_anchor(user_id: str, index: int) -> bool:
     
     save_store(store)
     return True
+
+def identify_face_dual(emb1: np.ndarray, emb2: np.ndarray, method: str = "mean", num_images: int = 3, threshold: float = 0.5) -> Tuple[Optional[str], float, float, float]:
+    """
+    Match two face embeddings (from 2 cameras) against the store by calculating the average similarity score.
+    Returns: (best_name, avg_score, score_cam1, score_cam2)
+    """
+    store = load_store()
+    if not store:
+        return "Unknown", 0.0, 0.0, 0.0
+        
+    best_match_id = None
+    best_avg_score = -1.0
+    highest_overall_score = -1.0
+    best_s1 = 0.0
+    best_s2 = 0.0
+    
+    for user_id, user_data in store.items():
+        ind_embs = user_data["individual_embeddings"]
+        ind_embs_to_use = ind_embs[:num_images] if num_images > 0 else ind_embs
+        if method == "one_shot":
+            ind_embs_to_use = ind_embs[:1]
+            
+        if method == "one_shot":
+            anchor_emb = np.array(ind_embs_to_use[0])
+            s1 = cosine_similarity(emb1, anchor_emb)
+            s2 = cosine_similarity(emb2, anchor_emb)
+        elif method == "mean":
+            mean_emb = np.mean(np.array(ind_embs_to_use), axis=0)
+            mean_emb = mean_emb / (np.linalg.norm(mean_emb) + 1e-10)
+            s1 = cosine_similarity(emb1, mean_emb)
+            s2 = cosine_similarity(emb2, mean_emb)
+        else: # average_cosine
+            scores1 = [cosine_similarity(emb1, np.array(a_emb)) for a_emb in ind_embs_to_use]
+            scores2 = [cosine_similarity(emb2, np.array(a_emb)) for a_emb in ind_embs_to_use]
+            s1 = sum(scores1) / len(scores1) if scores1 else 0.0
+            s2 = sum(scores2) / len(scores2) if scores2 else 0.0
+            
+        # Tính trung bình score từ 2 camera
+        avg_score = (s1 + s2) / 2.0
+        
+        if avg_score > highest_overall_score:
+            highest_overall_score = avg_score
+            best_s1 = s1
+            best_s2 = s2
+            
+        if avg_score >= threshold and avg_score > best_avg_score:
+            best_avg_score = avg_score
+            best_match_id = user_id
+            best_s1 = s1
+            best_s2 = s2
+            
+    if best_match_id:
+        return store[best_match_id]["name"], best_avg_score, best_s1, best_s2
+        
+    return "Unknown", highest_overall_score, best_s1, best_s2
+
