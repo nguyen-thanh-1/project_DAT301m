@@ -132,6 +132,16 @@ Thay vì áp dụng margin $m = 0.50$ ngay từ đầu (khiến accuracy = 0 tro
 .\.venv\Scripts\python.exe .\train.py
 ```
 
+### B2. Huấn luyện kiến trúc nhẹ hơn (MobileNetV2 + ArcFace)
+```powershell
+.\.venv\Scripts\python.exe .\train_mobilenetv2.py
+```
+
+### B3. Huấn luyện ResNet cỡ vừa + Transformer (ResNet18T + ArcFace)
+```powershell
+.\.venv\Scripts\python.exe .\train_resnet18t.py
+```
+
 ### C. Huấn luyện chế độ CNN-only (không Transformer)
 ```powershell
 .\.venv\Scripts\python.exe .\train.py --no_transformer
@@ -154,6 +164,59 @@ Thay vì áp dụng margin $m = 0.50$ ngay từ đầu (khiến accuracy = 0 tro
 .\.venv\Scripts\python.exe .\infer_embeddings.py --weights results\\best_backbone_weights.h5 --img path\\to\\a.jpg --img2 path\\to\\b.jpg
 ```
 
+Nếu bạn train kiến trúc MobileNetV2 (nhẹ hơn), inference dùng:
+```powershell
+.\.venv\Scripts\python.exe .\infer_embeddings.py --backbone mobilenetv2 --weights results\\best_mobilenetv2_backbone_weights.h5 --img path\\to\\a.jpg --img2 path\\to\\b.jpg
+```
+
+Inference ResNet18T:
+```powershell
+.\.venv\Scripts\python.exe .\infer_embeddings.py --backbone resnet18t --weights results\\best_resnet18t_backbone_weights.h5 --img path\\to\\a.jpg --img2 path\\to\\b.jpg
+```
+
+### G. Đánh giá One-shot đúng nghĩa (Verification ROC/EER)
+> Dùng `dataset/val/<identity>/*.jpg` để tạo cặp same/diff và đo cosine similarity. Metric chính: `EER`, `TPR@FAR`.
+
+```powershell
+.\.venv\Scripts\python.exe .\eval_verification.py --weights results\\best_backbone_weights.h5 --val_dir dataset\\val --pairs 10000
+```
+
+Đánh giá MobileNetV2:
+```powershell
+.\.venv\Scripts\python.exe .\eval_verification.py --backbone mobilenetv2 --weights results\\best_mobilenetv2_backbone_weights.h5 --val_dir dataset\\val --pairs 10000
+```
+
+Đánh giá ResNet18T:
+```powershell
+.\.venv\Scripts\python.exe .\eval_verification.py --backbone resnet18t --weights results\\best_resnet18t_backbone_weights.h5 --val_dir dataset\\val --pairs 10000
+```
+
+---
+
+## 6. Hệ Thống Điểm Danh Trực Tiếp (Live Attendance System)
+
+Dự án bao gồm một hệ thống điểm danh thời gian thực (Full-stack) tận dụng mô hình nhận diện đã được huấn luyện, chia làm 2 phần độc lập: **Backend (FastAPI)** và **Frontend (Next.js)**. 
+Hệ thống sử dụng kỹ thuật **Tensor Batching** (đưa tất cả khuôn mặt vào một lô) để tăng tốc độ nhận diện song song và tránh tràn bộ nhớ. Có hai chế độ so sánh:
+*   **Trung bình Embedding (Nhanh):** So sánh đặc trưng khuôn mặt từ camera với đặc trưng trung bình của các ảnh gốc (tính toán sẵn khi đăng ký).
+*   **Trung bình Cosine (Chính xác):** Tính khoảng cách tới từng ảnh gốc và lấy trung bình các khoảng cách.
+
+### A. Chạy Backend (FastAPI)
+Backend xử lý tải ảnh mẫu lên (đăng ký), trích xuất đặc trưng với MTCNN + iResNet50, và nhận dạng khuôn mặt cho điểm danh. Dữ liệu được lưu tại `be/anchors.json`.
+Mở terminal tại thư mục gốc:
+```powershell
+uvicorn be.main:app --reload
+```
+*Backend sẽ khởi chạy tại: `http://localhost:8000`*
+
+### B. Chạy Frontend (Next.js)
+Frontend cung cấp giao diện trực quan (UI cao cấp) để quản lý kho ảnh mẫu (anchors) và một tab camera trực tiếp có khả năng vẽ nhận diện theo thời gian thực (bounding boxes + tên).
+Mở một terminal khác tại thư mục `fe/`:
+```powershell
+cd fe
+npm run dev
+```
+*Frontend sẽ khởi chạy tại: `http://localhost:3000`*
+
 ---
 
 ## 6. Kết Quả Đầu Ra (Outputs)
@@ -168,10 +231,16 @@ Thư mục `results/` chứa:
 
 ---
 
-## 7. Cấu Trúc Thư Mục (Project Structure)
+## 8. Cấu Trúc Thư Mục (Project Structure)
 
 ```
 Project_DAT301m/
+├── be/                 # Backend FastAPI Server
+│   ├── services/       # Logic xử lý MTCNN, Embeddings và lưu trữ JSON
+│   └── main.py         # Điểm vào API
+├── fe/                 # Frontend Next.js Server
+│   ├── src/app/        # Giao diện chính (Next.js App Router)
+│   └── src/components/ # Components UI (CameraAttendance, AnchorManager)
 ├── dataset/
 │   ├── train/          # 658 danh tính, 183,216 ảnh
 │   └── val/            # 106 danh tính, 23,034 ảnh
@@ -180,7 +249,10 @@ Project_DAT301m/
 │       └── resnet50.py # Kiến trúc mô hình (reference)
 ├── results/            # Kết quả huấn luyện (auto-generated)
 ├── infer_embeddings.py # Inference: trích xuất embedding / cosine similarity
+├── eval_verification.py# Eval one-shot: ROC/EER/TPR@FAR trên dataset/val
 ├── train.py            # Script huấn luyện chính
+├── train_mobilenetv2.py # Script huấn luyện MobileNetV2 + ArcFace
+├── train_resnet18t.py   # Script huấn luyện ResNet18+Transformer + ArcFace
 ├── check.py            # Script kiểm tra GPU/TensorFlow
 └── README.md
 ```

@@ -1,0 +1,199 @@
+import os, sys
+
+# Train from project root
+PROJECT_ROOT = r"C:\Users\Admin\Desktop\Project_DAT301m"
+os.chdir(PROJECT_ROOT)
+sys.path.insert(0, PROJECT_ROOT)
+
+# ── Configuration ──────────────────────────
+# Set MODE = "siamese" or MODE = "triplet"
+MODE = "triplet"
+
+CONFIG = {
+    # Data paths
+    "dataset_dir": "dataset_ms1m/train",
+    "val_dir":     "dataset_ms1m/val",
+    "test_dir":    "dataset_ms1m/test",
+
+    # Training (shared)
+    "batch_size":        100,          # Siamese batch size
+    "epochs":            80,
+    "img_size":          112,
+    "embedding_dim":     512,
+    "dropout":           0.35,
+    "lr":                0.0007,       # same as old working siamese config
+    "pairs_per_epoch":   200000,       # Siamese only
+    "val_pairs":         10000,
+    "patience":          30,
+    "warmup_epochs":     8,           # same as old working config
+    "seed":              42,
+
+    # Siamese specific
+    "loss_type":         MODE,
+    "contrastive_weight": 0.2,
+    "margin_start":      0.4,
+    "margin_end":        0.0,
+    "hard_mine_every":    3,
+    "hard_mine_start":    10,
+    "hard_mine_samples":  5000,
+    "hard_mine_topk":     200,
+    "hard_ratio_start":   0.1,
+    "hard_ratio_end":     0.5,
+
+    # Triplet specific (200 images/batch fits 16 GB with mixed_float16)
+    "p_per_batch":              40,   # P identities per PK batch
+    "k_per_id":                 5,    # K images per identity
+    "triplet_margin":           0.3,  # cosine distance margin (0.2-0.4)
+    "triplet_batches_per_epoch": 1000, # PK batches per epoch
+
+    # Verification evaluation
+    "verify_every":       2,
+    "verify_pairs":       5000,
+
+    # Resume (set True to continue from checkpoint)
+    "resume":             True,
+}
+
+print(f"Configuration loaded [{MODE.upper()} mode].")
+print(f"  Dataset:         {CONFIG['dataset_dir']}")
+print(f"  Val:             {CONFIG['val_dir']}")
+print(f"  Test:            {CONFIG['test_dir']}")
+if MODE == "triplet":
+    total_batch = CONFIG['p_per_batch'] * CONFIG['k_per_id']
+    print(f"  PK batch:        P={CONFIG['p_per_batch']}, K={CONFIG['k_per_id']} -> {total_batch} images")
+    print(f"  Triplet margin:  {CONFIG['triplet_margin']}")
+else:
+    print(f"  Batch size:      {CONFIG['batch_size']}")
+print(f"  Epochs:          {CONFIG['epochs']}")
+print(f"  Mixed precision: ON (mixed_float16)")
+---
+import sys, json, os, math
+import tensorflow as tf
+
+from models.face_recognition.siamese import train
+
+# Build argument list
+args_list = [
+    'train_siamese.ipynb',
+    '--dataset_dir',     CONFIG['dataset_dir'],
+    '--val_dir',         CONFIG['val_dir'],
+    '--test_dir',        CONFIG['test_dir'],
+    '--loss_type',       CONFIG['loss_type'],
+    '--batch_size',      str(CONFIG['batch_size']),
+    '--epochs',          str(CONFIG['epochs']),
+    '--img_size',        str(CONFIG['img_size']),
+    '--embedding_dim',   str(CONFIG['embedding_dim']),
+    '--dropout',         str(CONFIG['dropout']),
+    '--lr',              str(CONFIG['lr']),
+    '--pairs_per_epoch', str(CONFIG['pairs_per_epoch']),
+    '--val_pairs',       str(CONFIG['val_pairs']),
+    '--patience',        str(CONFIG['patience']),
+    '--warmup_epochs',   str(CONFIG['warmup_epochs']),
+    '--seed',            str(CONFIG['seed']),
+    '--verify_every',    str(CONFIG['verify_every']),
+    '--verify_pairs',    str(CONFIG['verify_pairs']),
+]
+
+# Mode-specific args
+if CONFIG['loss_type'] == 'siamese':
+    args_list.extend([
+        '--contrastive_weight', str(CONFIG['contrastive_weight']),
+        '--margin_start',       str(CONFIG['margin_start']),
+        '--margin_end',         str(CONFIG['margin_end']),
+        '--hard_mine_every',    str(CONFIG['hard_mine_every']),
+        '--hard_mine_start',    str(CONFIG['hard_mine_start']),
+        '--hard_mine_samples',  str(CONFIG['hard_mine_samples']),
+        '--hard_mine_topk',     str(CONFIG['hard_mine_topk']),
+        '--hard_ratio_start',   str(CONFIG['hard_ratio_start']),
+        '--hard_ratio_end',     str(CONFIG['hard_ratio_end']),
+    ])
+else:
+    args_list.extend([
+        '--p_per_batch',              str(CONFIG['p_per_batch']),
+        '--k_per_id',                 str(CONFIG['k_per_id']),
+        '--triplet_margin',           str(CONFIG['triplet_margin']),
+        '--triplet_batches_per_epoch', str(CONFIG['triplet_batches_per_epoch']),
+    ])
+
+if CONFIG['resume']:
+    args_list.append('--resume')
+
+sys.argv = args_list
+
+print(f"Starting {CONFIG['loss_type'].upper()} training...")
+print("-" * 60)
+train.main()
+print("\nTraining script returned. Check results/ folder.")
+---
+# Build backbone for inference (match training dropout)
+from models.face_recognition.siamese.model import build_backbone
+
+RESULTS = "models/face_recognition/siamese/results"
+
+backbone = build_backbone(
+    input_shape=(112, 112, 3), embedding_dim=512,
+    dropout_rate=CONFIG['dropout'],
+    name="Inference",
+)
+backbone.load_weights(f"{RESULTS}/best_backbone.h5")
+print(f"[OK] Backbone loaded")
+print(f"  Params: {backbone.count_params():,}")
+---
+# Multi-Anchor Verification with MTCNN Alignment
+%matplotlib inline
+import matplotlib.pyplot as plt
+import numpy as np
+
+from models.face_recognition.siamese.model import build_backbone
+from shared.face_preprocessing import preprocess_face
+
+RESULTS = "models/face_recognition/siamese/results"
+
+def get_embedding_and_face(backbone, img_path):
+    img = preprocess_face(img_path)
+    emb = backbone.predict(img, verbose=0)
+    emb = emb / (np.linalg.norm(emb, axis=1, keepdims=True) + 1e-12)
+    return emb.flatten(), img[0]
+
+backbone = build_backbone(
+    input_shape=(112, 112, 3), embedding_dim=512,
+    dropout_rate=CONFIG['dropout'],
+    name="Inference",
+)
+backbone.load_weights(f"{RESULTS}/best_backbone.h5")
+
+anchor_paths = [
+    r"C:\Users\Admin\Desktop\Project_DAT301m\test_one_shot\origin.jpg",
+    r"C:\Users\Admin\Desktop\Project_DAT301m\test_one_shot\test1.jpg",
+    r"C:\Users\Admin\Desktop\Project_DAT301m\test_one_shot\test2.jpg",
+]
+query_path = r"C:\Users\Admin\Desktop\Project_DAT301m\test_one_shot\test8.jpg"
+
+anchor_results = [get_embedding_and_face(backbone, p) for p in anchor_paths]
+query_emb, query_face = get_embedding_and_face(backbone, query_path)
+anchor_embs = np.stack([r[0] for r in anchor_results])
+anchor_faces = [r[1] for r in anchor_results]
+
+cosines = np.dot(anchor_embs, query_emb)
+avg_similarity = float(cosines.mean())
+threshold = 0.40
+
+print("Cosine from each anchor:")
+for i, c in enumerate(cosines):
+    print(f"  Anchor {i+1}: {c:.4f}")
+print(f"Average cosine: {avg_similarity:.4f}")
+print(f"Threshold: {threshold}")
+print(f"Match: {avg_similarity > threshold}")
+
+fig, axes = plt.subplots(1, 4, figsize=(12, 4))
+titles = [f"Anchor {i+1}\ncos={cosines[i]:.3f}" for i in range(3)] + ["Query"]
+all_faces = anchor_faces + [query_face]
+for ax, face, title in zip(axes, all_faces, titles):
+    display = np.clip((face / 2.0 + 0.5), 0, 1)
+    display = (display * 255).astype(np.uint8)
+    ax.imshow(display)
+    ax.set_title(title, fontsize=11, fontweight="bold")
+    ax.axis("off")
+plt.tight_layout()
+plt.show()
+---
