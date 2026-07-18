@@ -1,0 +1,90 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+non-project-env/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# IDE / Editor configurations
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# Project-specific weights and checkpoints
+checkpoints/
+*.h5
+*.weights.h5
+*.pb
+*.onnx
+
+# Datasets and cache folders (avoid pushing gigabytes of data)
+LCC_FASD/
+lcc_fasd/
+LCC_FASD.zip
+cache_cropped/
+dataset/
+*.zip
+*.tar.gz
+*.tgz
+
+# Logs and Tensorboard
+logs/
+*.log
+tensorboard/
+**/logs/
+
+# Raw training results, history JSONs, epoch CSV logs, and training curves
+**/results_*.json
+**/model_*_curves.png
+**/*_log.csv
+
+# Local OS files
+.DS_Store
+Thumbs.db
+
+# Image, CSV, and text files (ignored by default)
+*.txt
+*.png
+*.jpg
+*.jpeg
+*.csv
+
+# Ignore all output directories entirely
+outputs/
+outputs_upgraded/
+outputs_model_c/
+outputs_model_d/
+
