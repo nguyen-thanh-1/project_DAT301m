@@ -1,0 +1,384 @@
+<mxfile host="Electron" modified="2026-07-18T14:05:00.000Z" agent="Mozilla/5.0" version="21.1.2" type="device">
+  <diagram id="ResNet50_Architecture" name="Architecture of ResNet50 model">
+    <mxGraphModel dx="1422" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="1654" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- TITLE -->
+        <mxCell id="title" value="Architecture of ResNet50 model" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=22;fontStyle=1;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="350" y="20" width="360" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- INPUT & STEM -->
+        <mxCell id="input" value="Input" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d6eaf8;strokeColor=#3498db;strokeWidth=2;fontStyle=1;fontSize=14;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="480" y="60" width="100" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="conv1" value="7×7 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;strokeWidth=1.5;fontSize=13;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="460" y="115" width="140" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="pool1" value="3×3 Maxpooling" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#82e0aa;strokeColor=#28b463;strokeWidth=1.5;fontSize=13;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="460" y="170" width="140" height="32" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_in_c1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;endArrow=block;" edge="1" parent="1" source="input" target="conv1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_c1_p1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;endArrow=block;" edge="1" parent="1" source="conv1" target="pool1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ================= STAGE 1 CONTAINER & BLOCKS ================= -->
+        <mxCell id="stage1_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ebf5fb;strokeColor=#85c1e9;strokeWidth=2;strokeColor=#5dade2;" vertex="1" parent="1">
+          <mxGeometry x="270" y="225" width="520" height="195" as="geometry" />
+        </mxCell>
+
+        <!-- Stage 1 Block 1 -->
+        <mxCell id="s1_b1_c1" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="295" y="240" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s1_b1_c2" value="3×3 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="295" y="278" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s1_b1_c3" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="295" y="316" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s1_b1_sc" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="295" y="375" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="e_s1b1_1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s1_b1_c1" target="s1_b1_c2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_s1b1_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s1_b1_c2" target="s1_b1_c3"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Stage 1 Block 2 -->
+        <mxCell id="s1_b2_c1" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="465" y="255" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s1_b2_c2" value="3×3 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="465" y="293" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s1_b2_c3" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="465" y="331" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="e_s1b2_1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s1_b2_c1" target="s1_b2_c2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_s1b2_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s1_b2_c2" target="s1_b2_c3"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Stage 1 Block 3 -->
+        <mxCell id="s1_b3_c1" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="635" y="255" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s1_b3_c2" value="3×3 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="635" y="293" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s1_b3_c3" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="635" y="331" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="e_s1b3_1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s1_b3_c1" target="s1_b3_c2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_s1b3_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s1_b3_c2" target="s1_b3_c3"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Pool1 -> Stage1 Block 1 -->
+        <mxCell id="e_p1_to_s1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.5;endArrow=block;" edge="1" parent="1" source="pool1" target="s1_b1_c1">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="360" y="186" /><mxPoint x="360" y="240" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e_p1_to_sc1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.5;endArrow=block;" edge="1" parent="1" source="pool1" target="s1_b1_sc">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="280" y="186" /><mxPoint x="280" y="389" /></Array></mxGeometry>
+        </mxCell>
+
+        <!-- Stage1 B1 -> B2 -->
+        <mxCell id="e_s1b1_to_b2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s1_b1_c3" target="s1_b2_c1">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="445" y="330" /><mxPoint x="445" y="269" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e_s1sc_to_b2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s1_b1_sc" target="s1_b2_c1">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="445" y="389" /><mxPoint x="445" y="269" /></Array></mxGeometry>
+        </mxCell>
+
+        <!-- Stage1 B2 -> B3 -->
+        <mxCell id="e_s1b2_to_b3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s1_b2_c3" target="s1_b3_c1">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="615" y="345" /><mxPoint x="615" y="269" /></Array></mxGeometry>
+        </mxCell>
+
+
+        <!-- ================= STAGE 2 CONTAINER & BLOCKS ================= -->
+        <mxCell id="stage2_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ebf5fb;strokeColor=#85c1e9;strokeWidth=2;strokeColor=#5dade2;" vertex="1" parent="1">
+          <mxGeometry x="190" y="445" width="680" height="195" as="geometry" />
+        </mxCell>
+
+        <!-- Stage 2 Block 1 -->
+        <mxCell id="s2_b1_c1" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="215" y="460" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s2_b1_c2" value="3×3 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="215" y="498" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s2_b1_c3" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="215" y="536" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s2_b1_sc" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="215" y="595" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="e_s2b1_1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s2_b1_c1" target="s2_b1_c2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_s2b1_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s2_b1_c2" target="s2_b1_c3"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Stage 2 Block 2 -->
+        <mxCell id="s2_b2_c1" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="385" y="475" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s2_b2_c2" value="3×3 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="385" y="513" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s2_b2_c3" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="385" y="551" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="e_s2b2_1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s2_b2_c1" target="s2_b2_c2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_s2b2_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s2_b2_c2" target="s2_b2_c3"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Stage 2 Block 3 -->
+        <mxCell id="s2_b3_c1" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="555" y="475" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s2_b3_c2" value="3×3 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="555" y="513" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s2_b3_c3" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="555" y="551" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="e_s2b3_1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s2_b3_c1" target="s2_b3_c2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_s2b3_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s2_b3_c2" target="s2_b3_c3"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Stage 2 Block 4 -->
+        <mxCell id="s2_b4_c1" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="720" y="475" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s2_b4_c2" value="3×3 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="720" y="513" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s2_b4_c3" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="720" y="551" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="e_s2b4_1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s2_b4_c1" target="s2_b4_c2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_s2b4_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s2_b4_c2" target="s2_b4_c3"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Stage 1 -> Stage 2 -->
+        <mxCell id="e_s1_to_s2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.5;endArrow=block;" edge="1" parent="1" source="s1_b3_c3" target="s2_b1_c1">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="700" y="430" /><mxPoint x="280" y="430" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e_s1_to_s2sc" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.5;endArrow=block;" edge="1" parent="1" source="s1_b3_c3" target="s2_b1_sc">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="700" y="430" /><mxPoint x="200" y="430" /><mxPoint x="200" y="609" /></Array></mxGeometry>
+        </mxCell>
+
+        <!-- Stage2 B1 -> B2 -> B3 -> B4 -->
+        <mxCell id="e_s2b1_to_b2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s2_b1_c3" target="s2_b2_c1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="365" y="550" /><mxPoint x="365" y="489" /></Array></mxGeometry></mxCell>
+        <mxCell id="e_s2sc_to_b2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s2_b1_sc" target="s2_b2_c1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="365" y="609" /><mxPoint x="365" y="489" /></Array></mxGeometry></mxCell>
+        <mxCell id="e_s2b2_to_b3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s2_b2_c3" target="s2_b3_c1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="535" y="565" /><mxPoint x="535" y="489" /></Array></mxGeometry></mxCell>
+        <mxCell id="e_s2b3_to_b4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s2_b3_c3" target="s2_b4_c1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="700" y="565" /><mxPoint x="700" y="489" /></Array></mxGeometry></mxCell>
+
+
+        <!-- ================= STAGE 3 CONTAINER & BLOCKS ================= -->
+        <mxCell id="stage3_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ebf5fb;strokeColor=#85c1e9;strokeWidth=2;strokeColor=#5dade2;" vertex="1" parent="1">
+          <mxGeometry x="110" y="665" width="840" height="195" as="geometry" />
+        </mxCell>
+
+        <!-- Stage 3 Block 1 -->
+        <mxCell id="s3_b1_c1" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="135" y="680" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s3_b1_c2" value="3×3 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="135" y="718" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s3_b1_c3" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="135" y="756" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s3_b1_sc" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="135" y="815" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="e_s3b1_1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s3_b1_c1" target="s3_b1_c2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_s3b1_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s3_b1_c2" target="s3_b1_c3"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Stage 3 Block 2 -->
+        <mxCell id="s3_b2_c1" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="305" y="695" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s3_b2_c2" value="3×3 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="305" y="733" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s3_b2_c3" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="305" y="771" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="e_s3b2_1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s3_b2_c1" target="s3_b2_c2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_s3b2_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s3_b2_c2" target="s3_b2_c3"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Stage 3 Block 3 -->
+        <mxCell id="s3_b3_c1" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="475" y="695" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s3_b3_c2" value="3×3 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="475" y="733" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s3_b3_c3" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="475" y="771" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="e_s3b3_1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s3_b3_c1" target="s3_b3_c2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_s3b3_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s3_b3_c2" target="s3_b3_c3"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Stage 3 Block 4 -->
+        <mxCell id="s3_b4_c1" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="640" y="695" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s3_b4_c2" value="3×3 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="640" y="733" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s3_b4_c3" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="640" y="771" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="e_s3b4_1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s3_b4_c1" target="s3_b4_c2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_s3b4_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s3_b4_c2" target="s3_b4_c3"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Stage 3 Block 5/6 -->
+        <mxCell id="s3_b5_c1" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="800" y="695" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s3_b5_c2" value="3×3 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="800" y="733" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s3_b5_c3" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="800" y="771" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="e_s3b5_1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s3_b5_c1" target="s3_b5_c2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_s3b5_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s3_b5_c2" target="s3_b5_c3"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Stage 2 -> Stage 3 -->
+        <mxCell id="e_s2_to_s3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.5;endArrow=block;" edge="1" parent="1" source="s2_b4_c3" target="s3_b1_c1">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="785" y="650" /><mxPoint x="200" y="650" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e_s2_to_s3sc" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.5;endArrow=block;" edge="1" parent="1" source="s2_b4_c3" target="s3_b1_sc">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="785" y="650" /><mxPoint x="120" y="650" /><mxPoint x="120" y="829" /></Array></mxGeometry>
+        </mxCell>
+
+        <!-- Stage3 B1 -> B2 -> B3 -> B4 -> B5 -->
+        <mxCell id="e_s3b1_to_b2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s3_b1_c3" target="s3_b2_c1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="285" y="770" /><mxPoint x="285" y="709" /></Array></mxGeometry></mxCell>
+        <mxCell id="e_s3sc_to_b2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s3_b1_sc" target="s3_b2_c1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="285" y="829" /><mxPoint x="285" y="709" /></Array></mxGeometry></mxCell>
+        <mxCell id="e_s3b2_to_b3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s3_b2_c3" target="s3_b3_c1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="455" y="785" /><mxPoint x="455" y="709" /></Array></mxGeometry></mxCell>
+        <mxCell id="e_s3b3_to_b4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s3_b3_c3" target="s3_b4_c1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="625" y="785" /><mxPoint x="625" y="709" /></Array></mxGeometry></mxCell>
+        <mxCell id="e_s3b4_to_b5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s3_b4_c3" target="s3_b5_c1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="785" y="785" /><mxPoint x="785" y="709" /></Array></mxGeometry></mxCell>
+
+
+        <!-- ================= STAGE 4 CONTAINER & BLOCKS ================= -->
+        <mxCell id="stage4_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ebf5fb;strokeColor=#85c1e9;strokeWidth=2;strokeColor=#5dade2;" vertex="1" parent="1">
+          <mxGeometry x="270" y="885" width="520" height="195" as="geometry" />
+        </mxCell>
+
+        <!-- Stage 4 Block 1 -->
+        <mxCell id="s4_b1_c1" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="295" y="900" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s4_b1_c2" value="3×3 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="295" y="938" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s4_b1_c3" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="295" y="976" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s4_b1_sc" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="295" y="1035" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="e_s4b1_1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s4_b1_c1" target="s4_b1_c2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_s4b1_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s4_b1_c2" target="s4_b1_c3"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Stage 4 Block 2 -->
+        <mxCell id="s4_b2_c1" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="465" y="915" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s4_b2_c2" value="3×3 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="465" y="953" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s4_b2_c3" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="465" y="991" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="e_s4b2_1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s4_b2_c1" target="s4_b2_c2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_s4b2_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s4_b2_c2" target="s4_b2_c3"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Stage 4 Block 3 -->
+        <mxCell id="s4_b3_c1" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="635" y="915" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s4_b3_c2" value="3×3 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="635" y="953" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s4_b3_c3" value="1×1 Convolution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1c40f;strokeColor=#d68910;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="635" y="991" width="130" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="e_s4b3_1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s4_b3_c1" target="s4_b3_c2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_s4b3_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s4_b3_c2" target="s4_b3_c3"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Stage 3 -> Stage 4 -->
+        <mxCell id="e_s3_to_s4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.5;endArrow=block;" edge="1" parent="1" source="s3_b5_c3" target="s4_b1_c1">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="865" y="870" /><mxPoint x="360" y="870" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e_s3_to_s4sc" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.5;endArrow=block;" edge="1" parent="1" source="s3_b5_c3" target="s4_b1_sc">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="865" y="870" /><mxPoint x="280" y="870" /><mxPoint x="280" y="1049" /></Array></mxGeometry>
+        </mxCell>
+
+        <!-- Stage4 B1 -> B2 -> B3 -->
+        <mxCell id="e_s4b1_to_b2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s4_b1_c3" target="s4_b2_c1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="445" y="990" /><mxPoint x="445" y="929" /></Array></mxGeometry></mxCell>
+        <mxCell id="e_s4sc_to_b2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s4_b1_sc" target="s4_b2_c1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="445" y="1049" /><mxPoint x="445" y="929" /></Array></mxGeometry></mxCell>
+        <mxCell id="e_s4b2_to_b3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;" edge="1" parent="1" source="s4_b2_c3" target="s4_b3_c1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="615" y="1005" /><mxPoint x="615" y="929" /></Array></mxGeometry></mxCell>
+
+
+        <!-- ================= OUTPUT POOLING & FC ================= -->
+        <mxCell id="pool2" value="7×7 Avgpooling" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#82e0aa;strokeColor=#28b463;strokeWidth=1.5;fontSize=13;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="460" y="1115" width="140" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="fc" value="FC" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#af7ac5;strokeColor=#6c3483;strokeWidth=2;fontStyle=1;fontSize=14;fontColor=#ffffff;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="480" y="1175" width="100" height="32" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_s4_to_pool2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.5;endArrow=block;" edge="1" parent="1" source="s4_b3_c3" target="pool2">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="700" y="1090" /><mxPoint x="530" y="1090" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e_pool2_to_fc" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.5;endArrow=block;" edge="1" parent="1" source="pool2" target="fc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+
+        <!-- ================= ANNOTATION CALLOUTS WITH DASHED ARROWS ================= -->
+        <!-- Max pooling layer callout -->
+        <mxCell id="lbl_pool" value="Max pooling layer" style="text;html=1;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="80" y="130" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="d_pool1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;html=1;strokeColor=#5dade2;strokeWidth=1.5;endArrow=block;" edge="1" parent="1" source="lbl_pool" target="pool1">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="240" y="150" /><mxPoint x="240" y="186" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="d_pool2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;html=1;strokeColor=#5dade2;strokeWidth=1.5;endArrow=block;" edge="1" parent="1" source="lbl_pool" target="s1_b1_c1">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="200" y="160" /><mxPoint x="200" y="254" /></Array></mxGeometry>
+        </mxCell>
+
+        <!-- Convolution layer callout -->
+        <mxCell id="lbl_conv" value="Convolution layer" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="920" y="130" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="d_conv0" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;html=1;strokeColor=#5dade2;strokeWidth=1.5;endArrow=block;" edge="1" parent="1" source="lbl_conv" target="conv1">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="900" y="145" /><mxPoint x="900" y="131" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="d_conv1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;html=1;strokeColor=#5dade2;strokeWidth=1.5;endArrow=block;" edge="1" parent="1" source="lbl_conv" target="stage1_box">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="900" y="150" /><mxPoint x="900" y="323" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="d_conv2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;html=1;strokeColor=#5dade2;strokeWidth=1.5;endArrow=block;" edge="1" parent="1" source="lbl_conv" target="stage2_box">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="920" y="155" /><mxPoint x="920" y="543" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="d_conv3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;html=1;strokeColor=#5dade2;strokeWidth=1.5;endArrow=block;" edge="1" parent="1" source="lbl_conv" target="stage3_box">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="970" y="160" /><mxPoint x="970" y="763" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="d_conv4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;html=1;strokeColor=#5dade2;strokeWidth=1.5;endArrow=block;" edge="1" parent="1" source="lbl_conv" target="stage4_box">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="990" y="165" /><mxPoint x="990" y="983" /></Array></mxGeometry>
+        </mxCell>
+
+        <!-- Fully connected layer callout -->
+        <mxCell id="lbl_fc" value="Fully connected layer" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="690" y="1175" width="200" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="d_fc" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;html=1;strokeColor=#5dade2;strokeWidth=1.5;endArrow=block;" edge="1" parent="1" source="lbl_fc" target="fc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,472 @@
+\documentclass[11pt,a4paper]{article}
+
+% --- PACKAGES ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1,T5]{fontenc} % Support Vietnamese characters
+\usepackage[vietnamese,english]{babel}
+\usepackage{geometry}
+\geometry{a4paper, margin=2cm}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds, calc}
+\usepackage{listings}
+\usepackage{float}
+\usepackage{caption}
+
+% --- COLOR DEFINITIONS ---
+\definecolor{primaryblue}{RGB}{15,52,96}
+\definecolor{accentred}{RGB}{233,69,96}
+\definecolor{darkbg}{RGB}{26,26,46}
+\definecolor{lightgray}{RGB}{245,245,245}
+\definecolor{tealborder}{RGB}{78,204,163}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=primaryblue,
+    urlcolor=accentred,
+    citecolor=primaryblue
+}
+
+\title{\textbf{\Large KIẾN TRÚC MÔ HÌNH: iResNet-50 + ArcFace Head\\ \large Tài liệu phân tích kỹ thuật toàn diện cho Hệ thống Nhận diện Khuôn mặt}}
+\author{Project DAT301m — AI Technical Breakdown}
+\date{\today}
+
+\begin{document}
+
+\selectlanguage{vietnamese}
+\maketitle
+
+\begin{tcolorbox}[colback=lightgray,colframe=primaryblue,title=\textbf{Thông tin Tổng quan (Metadata Summary)}]
+\textbf{Source Files:} \texttt{models/face\_recognition/iresnet/iresnet50.py}, \texttt{models/face\_recognition/iresnet/train.py}, \texttt{train\_iresnet50\_ms1m.ipynb}\\
+\textbf{Tổng số tham số Backbone (Inference):} $\sim$43.6M\\
+\textbf{Tổng số tham số khi Train (ArcFace Head 76,504 classes):} $\sim$82.8M\\
+\textbf{Kích thước đầu vào (Input Shape):} $112 \times 112 \times 3$ (RGB, Aligned \& Cropped)\\
+\textbf{Kích thước đầu ra (Output Embedding):} 512-D (L2-Normalized trên Hypersphere)
+\end{tcolorbox}
+
+\tableofcontents
+\newpage
+
+% =========================================================================
+\section{Tổng quan kiến trúc (Full Pipeline Architecture)}
+% =========================================================================
+
+Toàn bộ đường ống xử lý nhận diện khuôn mặt được chia làm 3 giai đoạn chính: Tiền xử lý ảnh (Preprocessing), Huấn luyện mô hình (Training Model với ArcFace Head), và Suy luận thực chiến (Inference One-Shot Verification).
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=1.2cm and 1.5cm,
+    box/.style={rectangle, draw=primaryblue, thick, rounded corners, align=center, minimum width=2.8cm, minimum height=1.2cm, fill=white},
+    redbox/.style={rectangle, draw=accentred, thick, rounded corners, align=center, minimum width=2.8cm, minimum height=1.2cm, fill=lightgray},
+    greenbox/.style={rectangle, draw=tealborder, thick, rounded corners, align=center, minimum width=2.8cm, minimum height=1.2cm, fill=white},
+    arrow/.style={-{Latex[length=3mm]}, thick, color=primaryblue}
+]
+
+% Preprocessing
+\node[box, fill=darkbg!5] (raw) {Ảnh gốc\\(Raw Image)};
+\node[box, right=of raw] (mtcnn) {MTCNN\\Detect \& Align};
+\node[redbox, right=of mtcnn] (crop) {Crop \& Resize\\$112 \times 112 \times 3$};
+
+% Training Model
+\node[greenbox, below=1.8cm of crop] (stem) {Stem Block\\Conv $3\times3$ + BN + PReLU};
+\node[greenbox, left=of stem] (stages) {4 Stages\\(24 IR Blocks)};
+\node[greenbox, left=of stages] (head) {Output Head\\Flatten $\to$ Dense 512};
+\node[redbox, below=1.5cm of head] (arcface) {ArcFace Loss Head\\Cosine Margin ($s=64, m$)};
+\node[box, right=of arcface] (loss) {Categorical\\Crossentropy Loss};
+
+% Inference
+\node[redbox, below=1.5cm of stem] (l2) {L2 Normalization\\$\vec{e} = \frac{\vec{x}}{\|\vec{x}\|_2}$};
+\node[box, right=of l2] (cosine) {Cosine Similarity\\$\text{sim}(A, B) = \vec{e}_A \cdot \vec{e}_B$};
+
+% Arrows
+\draw[arrow] (raw) -- (mtcnn);
+\draw[arrow] (mtcnn) -- (crop);
+\draw[arrow] (crop) -- node[right, font=\footnotesize] {image\_input} (stem);
+\draw[arrow] (stem) -- (stages);
+\draw[arrow] (stages) -- (head);
+\draw[arrow] (head) -- node[left, font=\footnotesize] {emb (512-D)} (arcface);
+\draw[arrow] (arcface) -- node[above, font=\footnotesize] {logits (76504)} (loss);
+\draw[arrow, dashed, color=accentred] (head.south) |- node[near start, right, font=\footnotesize] {Inference Only} (l2.west);
+\draw[arrow] (l2) -- node[above, font=\footnotesize] {512-D Vector} (cosine);
+
+% Subgraphs borders
+\begin{scope}[on background layer]
+    \node[draw=accentred, dashed, rounded corners, fit=(raw) (crop), label={[font=\bfseries\small]above:1. Tiền xử lý (Preprocessing)}] {};
+    \node[draw=primaryblue, dashed, rounded corners, fit=(stem) (head) (arcface) (loss), label={[font=\bfseries\small]above:2. Huấn luyện (Training Pipeline)}] {};
+    \node[draw=tealborder, dashed, rounded corners, fit=(l2) (cosine), label={[font=\bfseries\small]below:3. Suy luận thực chiến (Inference One-Shot Pipeline)}] {};
+\end{scope}
+
+\end{tikzpicture}
+\caption{Sơ đồ tổng thể hệ thống nhận diện khuôn mặt từ tiền xử lý đến huấn luyện và suy luận.}
+\end{figure}
+
+% =========================================================================
+\section{Chi tiết từng khối kiến trúc (Block-by-Block Architecture)}
+% =========================================================================
+
+\subsection{Stem Block (Entry Block)}
+Stem block đảm nhận việc chuyển đổi ảnh đầu vào từ 3 kênh màu lên không gian đặc trưng 64 chiều mà không làm mất thông tin không gian quá nhanh như MaxPooling truyền thống.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{c l c c c r}
+\toprule
+\textbf{Thứ tự} & \textbf{Layer Name} & \textbf{Kernel Size} & \textbf{Stride} & \textbf{Output Shape} & \textbf{Tham số (Params)} \\
+\midrule
+1 & \texttt{Conv2D} (\texttt{stem\_conv}) & $3 \times 3$, 64 & 1 & $112 \times 112 \times 64$ & 1,728 \\
+2 & \texttt{BatchNorm} (\texttt{stem\_bn}) & -- & -- & $112 \times 112 \times 64$ & 256 \\
+3 & \texttt{PReLU} (\texttt{stem\_prelu}) & -- & -- & $112 \times 112 \times 64$ & 1 \\
+\bottomrule
+\end{tabular}
+\caption{Cấu hình chi tiết Stem Block.}
+\end{table}
+
+\subsection{Khối cấu trúc cải tiến IR Block (Improved Residual Block)}
+Đây là đơn vị cơ bản (\texttt{IBasicBlock}) được lặp lại tổng cộng 24 lần theo cấu trúc \texttt{[3, 4, 14, 3]} trong 4 Stages của toàn bộ mạng.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=0.8cm,
+    block/.style={rectangle, draw=primaryblue, thick, rounded corners, align=center, minimum width=3.5cm, minimum height=0.8cm},
+    add/.style={circle, draw=accentred, thick, minimum size=0.8cm, inner sep=0pt},
+    arrow/.style={-{Latex[length=3mm]}, thick}
+]
+
+\node (input) {\textbf{Input} ($H \times W \times C_{in}$)};
+\node[block, below=0.6cm of input] (bn1) {BatchNorm (0.9, $2\times10^{-5}$)};
+\node[block, below=of bn1] (conv1) {Conv2D $3\times3$, stride $= 1$, same};
+\node[block, below=of conv1] (bn2) {BatchNorm (0.9, $2\times10^{-5}$)};
+\node[block, below=of bn2] (prelu) {PReLU (shared\_axes $={1,2}$)};
+\node[block, below=of prelu] (conv2) {Conv2D $3\times3$, stride $= S$, same};
+\node[block, below=of conv2] (bn3) {BatchNorm (0.9, $2\times10^{-5}$)};
+
+\node[add, below=1.0cm of bn3] (addnode) {$\oplus$};
+\node[below=0.6cm of addnode] (output) {\textbf{Output} ($H/S \times W/S \times C_{out}$)};
+
+% Shortcut path
+\node[block, right=2.5cm of prelu, draw=accentred] (scconv) {Conv2D $1\times1$, stride $= S$};
+\node[block, below=of scconv, draw=accentred] (scbn) {BatchNorm (0.9, $2\times10^{-5}$)};
+
+% Main path connections
+\draw[arrow] (input) -- (bn1);
+\draw[arrow] (bn1) -- (conv1);
+\draw[arrow] (conv1) -- (bn2);
+\draw[arrow] (bn2) -- (prelu);
+\draw[arrow] (prelu) -- (conv2);
+\draw[arrow] (conv2) -- (bn3);
+\draw[arrow] (bn3) -- node[left, font=\footnotesize] {Main Path} (addnode);
+\draw[arrow] (addnode) -- node[right, font=\footnotesize\color{accentred}] {KHÔNG CÓ activation!} (output);
+
+% Shortcut connections
+\draw[arrow] (input.south) -- ++(0,-0.3) -| (scconv.north);
+\draw[arrow] (scconv) -- (scbn);
+\draw[arrow] (scbn.south) |- node[above near start, font=\footnotesize] {Shortcut Path (Nếu $S\neq1$ hoặc $C_{in}\neq C_{out}$)} (addnode.east);
+
+\end{tikzpicture}
+\caption{Sơ đồ khối IR Block (Improved Residual Block). Khác với ResNet gốc, khối này đặt BatchNorm trước Conv và giữ nguyên luồng tuyến tính sau phép cộng Shortcut.}
+\end{figure}
+
+\subsection{Chi tiết 4 Stage của Backbone}
+\begin{table}[H]
+\centering
+\begin{tabular}{l c c c c l}
+\toprule
+\textbf{Stage} & \textbf{Khối (Block)} & \textbf{Stride} & \textbf{Input Shape} & \textbf{Output Shape} & \textbf{Shortcut Type} \\
+\midrule
+\textbf{Stage 1} & \texttt{block\_1} & \textbf{2} & $112 \times 112 \times 64$ & $56 \times 56 \times 64$ & Conv $1\times1$ (stride=2) \\
+(3 blocks) & \texttt{block\_2..3} & 1 & $56 \times 56 \times 64$ & $56 \times 56 \times 64$ & Identity (Nối thẳng) \\
+\midrule
+\textbf{Stage 2} & \texttt{block\_1} & \textbf{2} & $56 \times 56 \times 64$ & $28 \times 28 \times 128$ & Conv $1\times1$ (stride=2) \\
+(4 blocks) & \texttt{block\_2..4} & 1 & $28 \times 28 \times 128$ & $28 \times 28 \times 128$ & Identity (Nối thẳng) \\
+\midrule
+\textbf{Stage 3} & \texttt{block\_1} & \textbf{2} & $28 \times 28 \times 128$ & $14 \times 14 \times 256$ & Conv $1\times1$ (stride=2) \\
+(14 blocks) & \texttt{block\_2..14} & 1 & $14 \times 14 \times 256$ & $14 \times 14 \times 256$ & Identity (Nối thẳng) \\
+\midrule
+\textbf{Stage 4} & \texttt{block\_1} & \textbf{2} & $14 \times 14 \times 256$ & $7 \times 7 \times 512$ & Conv $1\times1$ (stride=2) \\
+(3 blocks) & \texttt{block\_2..3} & 1 & $7 \times 7 \times 512$ & $7 \times 7 \times 512$ & Identity (Nối thẳng) \\
+\bottomrule
+\end{tabular}
+\caption{Chi tiết cấu hình 4 Stage của iResNet50 Backbone.}
+\end{table}
+
+\subsection{ArcFace Output Head (Embedding Layer)}
+Phần cuối của Backbone chuyển đổi bản đồ đặc trưng (Feature Map) kích thước $7 \times 7 \times 512$ thành vector embedding 512 chiều.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{c l l c r}
+\toprule
+\textbf{Thứ tự} & \textbf{Layer Name} & \textbf{Chi tiết tham số} & \textbf{Output Shape} & \textbf{Tham số (Params)} \\
+\midrule
+1 & \texttt{Flatten} & $7 \times 7 \times 512 \to 25088$ & (None, 25088) & 0 \\
+2 & \texttt{BatchNorm} (\texttt{bn\_flatten}) & momentum=0.9, $\epsilon=2\times10^{-5}$ & (None, 25088) & 100,352 \\
+3 & \texttt{Dropout} & \textbf{rate=0.5} (Chỉ khi Training) & (None, 25088) & 0 \\
+4 & \texttt{Dense} (\texttt{fc\_embedding}) & units=512, no bias, glorot\_normal & (None, 512) & 12,845,056 \\
+5 & \texttt{BatchNorm} (\texttt{bn\_embedding}) & \textbf{scale=False}, momentum=0.9 & (None, 512) & 1,024 \\
+\bottomrule
+\end{tabular}
+\caption{Cấu hình tầng Output Head tạo ra Embedding 512-D.}
+\end{table}
+
+\noindent \textbf{Tại sao \texttt{scale=False} ở lớp BN cuối?} Vì hàm ArcFace và luồng suy luận sau đó sẽ thực hiện chuẩn hóa L2 (L2-Normalization) vector embedding về độ dài đơn vị ($\|\vec{e}\|_2 = 1$). Do đó tham số tỷ lệ $\gamma$ của BatchNormalization là dư thừa và có thể gây nhiễu đạo hàm góc.
+
+% =========================================================================
+\section{ArcFace Loss Layer (Chỉ áp dụng khi Huấn luyện)}
+% =========================================================================
+
+\subsection{Công thức toán học}
+Hàm mất mát ArcFace (Additive Angular Margin Loss) được tính theo công thức:
+\begin{equation}
+\mathcal{L}_{\text{ArcFace}} = -\frac{1}{N} \sum_{i=1}^{N} \log \frac{e^{s \cdot \cos(\theta_{y_i} + m)}}{e^{s \cdot \cos(\theta_{y_i} + m)} + \sum_{j \neq y_i} e^{s \cdot \cos\theta_{j}}}
+\end{equation}
+Trong đó:
+\begin{itemize}
+    \item $\theta_j$ là góc giữa vector đặc trưng đã chuẩn hóa $\vec{x}_i$ và vector trọng số của lớp $j$ ($\vec{W}_j$), được tính bởi tích vô hướng $\cos\theta_j = \frac{\vec{x}_i \cdot \vec{W}_j}{\|\vec{x}_i\|_2 \|\vec{W}_j\|_2}$.
+    \item $m \in [0, 0.5]$ là margin góc cộng thêm (Additive Angular Margin) vào lớp đúng $y_i$, buộc mô hình phải ép các khuôn mặt cùng người lại gần nhau hơn trong không gian góc.
+    \item $s = 64.0$ là hệ số phóng đại bán kính hình cầu (Scale Factor) nhằm đảm bảo gradient đủ lớn giúp mạng hội tụ nhanh.
+\end{itemize}
+
+\subsection{Để đảm bảo độ ổn định số học (Numerical Stability)}
+Thay vì dùng hàm lượng giác ngược $\arccos$ dễ bị sốc đạo hàm tại cận $[-1, 1]$, code sử dụng công thức khai triển lượng giác:
+\begin{equation}
+\cos(\theta + m) = \cos\theta \cos m - \sin\theta \sin m = \cos\theta \cos m - \sqrt{1 - \cos^2\theta} \cdot \sin m
+\end{equation}
+
+% =========================================================================
+\section{So sánh với ResNet-50 truyền thống (ImageNet Standard)}
+% =========================================================================
+
+\begin{table}[H]
+\centering
+\begin{tabular}{l p{5.5cm} p{6.5cm}}
+\toprule
+\textbf{Đặc điểm} & \textbf{ResNet-50 (ImageNet Standard)} & \textbf{iResNet-50 (InsightFace / ArcFace)} \\
+\midrule
+\textbf{Kích thước input} & $224 \times 224 \times 3$ & \textbf{$112 \times 112 \times 3$} \\
+\textbf{Stem Layer} & Conv $7\times7$, stride=2 + MaxPool & \textbf{Conv $3\times3$, stride=1 (Không dùng Pool)} \\
+\textbf{Cấu trúc khối} & Bottleneck ($1\times1 \to 3\times3 \to 1\times1$) & \textbf{IR Block ($3\times3 \to 3\times3$)} \\
+\textbf{Hàm kích hoạt} & ReLU & \textbf{PReLU} \\
+\textbf{Thứ tự tầng} & Conv $\to$ BN $\to$ ReLU $\to$ Conv $\to$ Add $\to$ ReLU & \textbf{BN $\to$ Conv $\to$ BN $\to$ PReLU $\to$ Conv $\to$ BN $\to$ Add} \\
+\textbf{Phân bổ Stage} & \texttt{[3, 4, 6, 3]} (Tổng 16 blocks) & \textbf{\texttt{[3, 4, 14, 3]}} (Tổng 24 blocks) \\
+\textbf{Output Head} & GlobalAvgPool $\to$ Dense(1000) & \textbf{Flatten $\to$ BN $\to$ Dropout $\to$ Dense(512) $\to$ BN} \\
+\textbf{Loss Function} & Softmax Cross-Entropy & \textbf{ArcFace (Additive Angular Margin)} \\
+\bottomrule
+\end{tabular}
+\caption{Bảng so sánh kỹ thuật giữa ResNet gốc và iResNet50 tối ưu cho khuôn mặt.}
+\end{table}
+
+% =========================================================================
+\section{Ứng dụng \& Chi tiết 2 Trạng thái Mô hình (Training vs Inference)}
+% =========================================================================
+
+\subsection{Các trường hợp ứng dụng thực tế (Use Cases)}
+\begin{enumerate}
+    \item \textbf{One-Shot Face Verification (Xác thực 1-1):} So sánh 2 ảnh khuôn mặt để trả lời câu hỏi \textit{"Hai ảnh này có phải cùng một người hay không?"} (ví dụ: mở khóa điện thoại, eKYC căn cước công dân). Chỉ cần tính Cosine Similarity giữa 2 vector 512-D; nếu $> 0.22 \sim 0.30$ kết luận cùng người mà không cần retrain model.
+    \item \textbf{Face Identification / Search (Nhận diện 1-N):} Tìm kiếm một khuôn mặt truy vấn trong cơ sở dữ liệu hàng triệu danh tính (sử dụng FAISS/Milvus vector index).
+    \item \textbf{Face Clustering (Phân cụm):} Gom nhóm tự động các ảnh cùng người trong album ảnh khổng lồ.
+\end{enumerate}
+
+\subsection{Sơ đồ và Bảng tham số 2 trạng thái (Training Model vs Inference Model)}
+
+\subsubsection{Trạng thái Huấn luyện (\texttt{Training Model} --- \texttt{best\_iresnet50.h5})}
+\begin{itemize}
+    \item \textbf{Tổng số tham số:} \textbf{82,798,529} ($\sim$82.8M params)
+    \item \textbf{Trainable params:} 82,760,384 \quad|\quad \textbf{Non-trainable params:} 38,145
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=1.0cm,
+    box/.style={rectangle, draw=primaryblue, thick, rounded corners, align=center, minimum width=3.2cm, minimum height=1.0cm},
+    redbox/.style={rectangle, draw=accentred, thick, rounded corners, align=center, minimum width=3.2cm, minimum height=1.0cm, fill=lightgray},
+    arrow/.style={-{Latex[length=3mm]}, thick}
+]
+\node[box] (img) {image\_input\\($B, 112, 112, 3$)};
+\node[box, right=2.0cm of img] (lbl) {label\_input\\($B,$ integer ID)};
+
+\node[box, below=1.2cm of img, fill=darkbg!5] (bb) {\textbf{iResNet50 Backbone}\\($43,628,480$ params)};
+\node[redbox, below=1.2cm of bb] (head) {\textbf{ArcFace Loss Layer}\\($39,170,049$ params)\\Trọng số $W: (512, 76504)$};
+\node[box, below=1.2cm of head] (loss) {CategoricalCrossentropy\\(logits $B \times 76504$)};
+
+\draw[arrow] (img) -- (bb);
+\draw[arrow] (bb) -- node[right, font=\footnotesize] {Raw Embedding ($B, 512$)} (head);
+\draw[arrow] (lbl.south) |- (head.east);
+\draw[arrow] (head) -- node[right, font=\footnotesize] {Logits (Đã scale $s=64$)} (loss);
+\end{tikzpicture}
+\caption{Sơ đồ luồng dữ liệu của Trạng thái Huấn luyện (\texttt{Training Model}).}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{l l c r c}
+\toprule
+\textbf{Thành phần chính} & \textbf{Chi tiết cấu thành} & \textbf{Shape} & \textbf{Tham số (Params)} & \textbf{Tỷ lệ (\%)} \\
+\midrule
+Stem + 4 Stages & \texttt{stem} $\to$ \texttt{stage4} & $(112,112,3) \to (7,7,512)$ & 30,680,000 & 37.0\% \\
+Output Head & Flatten + Dense 512 + BN & $25088 \to 512$ & 12,948,480 & 15.6\% \\
+\midrule
+\textbf{Tổng Backbone} & \textbf{Mạng iResNet50 trọn vẹn} & \textbf{Vector 512-D} & \textbf{43,628,480} & \textbf{52.7\%} \\
+\midrule
+ArcFace Loss Head & Ma trận $W$ ($512 \times 76504$) + $m$ & $(512, 76504)$ & 39,170,049 & 47.3\% \\
+\midrule
+\textbf{TỔNG CỘNG} & \textbf{Training Model} & \textbf{Logits $(B, 76504)$} & \textbf{82,798,529} & \textbf{100\%} \\
+\bottomrule
+\end{tabular}
+\caption{Phân bổ tham số của mô hình khi huấn luyện trên 76,504 classes.}
+\end{table}
+
+\subsubsection{Trạng thái Suy luận / Deploy (\texttt{Inference Backbone} --- \texttt{best\_iresnet50\_backbone.h5})}
+\begin{itemize}
+    \item \textbf{Tổng số tham số:} \textbf{43,628,480} ($\sim$43.6M params --- chỉ chiếm 52.7\% model train)
+    \item \textbf{Trainable params:} 43,590,336 \quad|\quad \textbf{Non-trainable params:} 38,144
+    \item \textbf{Đặc điểm sống còn:} Loại bỏ nhãn \texttt{label\_input} và ma trận trọng số $W$ (39.1M params). Đầu ra được chuẩn hóa L2 Layer trỏ thẳng ra hypersphere.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=1.2cm,
+    box/.style={rectangle, draw=primaryblue, thick, rounded corners, align=center, minimum width=3.5cm, minimum height=1.0cm},
+    greenbox/.style={rectangle, draw=tealborder, thick, rounded corners, align=center, minimum width=3.5cm, minimum height=1.0cm, fill=white},
+    arrow/.style={-{Latex[length=3mm]}, thick}
+]
+\node[box] (img) {image\_input\\($B, 112, 112, 3$)};
+\node[box, below=of img, fill=darkbg!5] (bb) {\textbf{iResNet50 Backbone}\\Stem + 4 Stages + Output Head\\($43,628,480$ params)};
+\node[greenbox, below=of bb] (l2) {L2 Normalization Layer\\$\vec{e} = \frac{\vec{x}}{\|\vec{x}\|_2}$ (0 params)};
+\node[greenbox, below=of l2] (out) {Unit Embeddings ($B, 512$)\\Tính Cosine Similarity One-Shot};
+
+\draw[arrow] (img) -- (bb);
+\draw[arrow] (bb) -- node[right, font=\footnotesize] {Raw 512-D} (l2);
+\draw[arrow] (l2) -- node[right, font=\footnotesize] {Normalized 512-D} (out);
+\end{tikzpicture}
+\caption{Sơ đồ luồng dữ liệu của Trạng thái Suy luận (\texttt{Inference Backbone}).}
+\end{figure}
+
+% =========================================================================
+\section{Cấu hình Huấn luyện \& Lịch trình Tối ưu (Training Configuration)}
+% =========================================================================
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{l l X}
+\toprule
+\textbf{Thành phần} & \textbf{Cấu hình / Thiết lập} & \textbf{Chi tiết lý do kỹ thuật} \\
+\midrule
+\textbf{Thuật toán tối ưu} & \textbf{SGD} & \texttt{momentum=0.9, nesterov=True, weight\_decay=5e-4}. Trong bài toán phân loại hàng chục ngàn classes, Adam dễ bị bão hòa sớm, trong khi SGD Nesterov hội tụ cận cực tiểu tốt hơn. \\
+\midrule
+\textbf{Hàm mất mát} & \textbf{ArcFace} & \texttt{scale s=64.0} cố định; \texttt{CategoricalCrossentropy(label\_smoothing=0.1)} giúp chống overfit vào nhãn nhiễu trong dataset lớn MS1M. Hỗ trợ tùy chọn \textbf{ElasticFace}. \\
+\midrule
+\textbf{Lịch trình học} & \textbf{Step Decay + Warmup} & \texttt{Initial LR = 0.01}. Linear Warmup trong 2 epochs đầu ($0 \to 0.01$) để ổn định gradient. Giảm LR đi 10 lần tại các mốc epochs \texttt{[16, 22, 26, 30]} hoặc \texttt{[5, 8, 10, 12]}. \\
+\midrule
+\textbf{Progressive Margin} & \textbf{Bậc thang mỗi 5 epochs} & Tăng dần margin để tránh bùng nổ gradient giai đoạn đầu: Epoch 1--5: $m=0.1$; Epoch 6--10: $m=0.2$; Epoch 11--15: $m=0.3$; Epoch 16--20: $m=0.4$; Epoch 21+: $m=0.5$ rad. \\
+\midrule
+\textbf{Regularization} & \textbf{BN + Dropout + Decay} & Dropout $0.5$ tại tầng trước Dense 512; L2 Weight Decay $0.0005$; Gradient Clipping \texttt{clipnorm=1.0}. \\
+\midrule
+\textbf{Augmentation} & \textbf{Flip + Color Jitter + Erasing} & Random Horizontal Flip, Brightness/Contrast Jitter, Random Erasing và Random Blur ($p=0.2$). \\
+\bottomrule
+\end{tabularx}
+\caption{Tổng hợp các hyperparameter và thuật toán tối ưu quá trình huấn luyện.}
+\end{table}
+
+% =========================================================================
+\section{Hệ thống Kiểm định \& Quản lý Checkpoints (Verification \& Checkpoints)}
+% =========================================================================
+
+\subsection{Verification Pipeline (\texttt{VerificationCallback})}
+Trong quá trình train, mỗi 3 epochs (\texttt{verify\_every = 3}), mô hình tự động chạy kiểm nghiệm trên tập dữ liệu hoàn toàn chưa từng gặp (\texttt{ms1m\_arcface\_dataset/test} --- 8,500 identities) ghép thành 5,000 $\sim$ 25,000 cặp ảnh Positive/Negative để đo lường:
+\begin{itemize}
+    \item \textbf{EER (Equal Error Rate):} Tỷ lệ lỗi tại điểm $\text{FAR} = \text{FRR}$. Thực nghiệm đạt EER xuất sắc \textbf{2.34\% (0.0234)}.
+    \item \textbf{TAR@FAR=1e-3 (0.1\% FAR):} Đạt \textbf{93.86\%} \quad|\quad \textbf{TAR@FAR=1e-4 (0.01\% FAR):} Đạt \textbf{89.96\%}.
+    \item \textbf{Phân phối điểm số:} Pos\_sim trung bình $= 0.5375$, Neg\_sim trung bình $= 0.0306$ (chứng tỏ không gian đặc trưng phân tách cực kỳ sắc nét).
+\end{itemize}
+
+\subsection{Cơ chế Checkpoint và Danh sách file đầu ra}
+Sử dụng \texttt{tf.train.Checkpoint(model, backbone, loss\_layer, optimizer, epoch)} lưu tại \texttt{checkpoints/latest/} và \texttt{checkpoints/best/}. Khác với chỉ lưu file \texttt{.h5}, cơ chế này lưu trọn vẹn \textbf{\texttt{optimizer.iterations}}, \textbf{\texttt{margin\_var}} và trạng thái momentum của SGD, đảm bảo khả năng \textbf{Resume Training không bị lệch bước nhịp hay tụt accuracy}.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{l l p{8cm}}
+\toprule
+\textbf{Tên file / Thư mục} & \textbf{Định dạng} & \textbf{Mô tả chi tiết} \\
+\midrule
+\texttt{best\_iresnet50\_backbone.h5} & HDF5 & \textbf{File trọng số quan trọng nhất cho Deploy/Inference.} Chỉ chứa Backbone ($\sim$43.6M params), sẵn sàng load vào app. \\
+\texttt{best\_iresnet50.h5} & HDF5 & File trọng số full mô hình (Backbone + Loss Head 82.8M params). \\
+\texttt{checkpoints/latest/} & Checkpoint & Lưu 2 checkpoint mới nhất phục vụ phục hồi resume training. \\
+\texttt{checkpoints/best/} & Checkpoint & Lưu checkpoint đạt đỉnh val\_accuracy cao nhất. \\
+\texttt{training\_meta.json} & JSON & Nhật ký chi tiết của từng epoch (loss, acc, lr, margin, EER). \\
+\texttt{training\_history.png} & PNG & Biểu đồ tổng hợp 4 trục: Loss, Acc, LR Step Decay, Progressive Margin. \\
+\bottomrule
+\end{tabular}
+\caption{Danh sách các tệp kết quả sinh ra trong thư mục \texttt{results\_iresnet50/}.}
+\end{table}
+
+% =========================================================================
+\section{Kiến trúc Dữ liệu \& Thống kê Quy mô Entities (Dataset Architecture)}
+% =========================================================================
+
+\subsection{Cấu trúc Folder và quy trình chia tách (\texttt{split\_ms1m.py})}
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=1.5cm,
+    box/.style={rectangle, draw=primaryblue, thick, rounded corners, align=center, minimum width=3.2cm, minimum height=0.9cm},
+    redbox/.style={rectangle, draw=accentred, thick, rounded corners, align=center, minimum width=3.2cm, minimum height=0.9cm, fill=lightgray},
+    arrow/.style={-{Latex[length=3mm]}, thick}
+]
+
+\node[box, fill=darkbg!5] (raw) {\textbf{ms1m-arcface/}\\(85,742 folders ID thô)};
+\node[box, right=3.0cm of raw] (train) {\textbf{train/}\\76,504 IDs ($\sim$4.75M ảnh)};
+\node[box, below=0.4cm of train] (val) {\textbf{val/}\\76,504 IDs ($\sim$491K ảnh)};
+\node[redbox, below=0.4cm of val] (test) {\textbf{test/ (Unseen)}\\8,500 IDs ($\sim$500K ảnh)};
+
+\draw[arrow] (raw) -- node[above, font=\footnotesize, align=center] {split\_ms1m.py\\Lọc bỏ 738 IDs $<5$ ảnh} (train.west);
+\draw[arrow] (raw.east) |- (val.west);
+\draw[arrow] (raw.east) |- node[below, font=\footnotesize] {Class-first split (20\% IDs)} (test.west);
+
+\end{tikzpicture}
+\caption{Sơ đồ phân chia dataset MS1M sang thư mục chuẩn \texttt{ms1m\_arcface\_dataset/}.}
+\end{figure}
+
+\subsection{Bảng thống kê toàn diện Entities (Classes) và Images}
+\begin{table}[H]
+\centering
+\begin{tabular}{l l r r l}
+\toprule
+\textbf{Bộ Dữ Liệu} & \textbf{Tập con (Split)} & \textbf{Số Entities (Classes)} & \textbf{Số Ảnh (Images)} & \textbf{Mục đích sử dụng} \\
+\midrule
+\textbf{\texttt{ms1m\_arcface\_dataset}} & \texttt{train/} & \textbf{76,504} & $\sim$4,748,639 & Huấn luyện ArcFace trọng số $W$. \\
+\textit{(Dataset chính)} & \texttt{val/} & \textbf{76,504} & $\sim$491,516 & Giám sát convergence (cùng ID với train). \\
+& \texttt{test/} & \textbf{8,500} & $\sim$500,000+ & \textbf{Unseen IDs} đo EER, TAR@FAR. \\
+\cmidrule{2-5}
+& \textbf{Tổng cộng} & \textbf{85,004} & \textbf{$\sim$5,740,155} & Đã loại bỏ 738 IDs nhiễu ($<5$ ảnh). \\
+\midrule
+\textbf{\texttt{ms1m-arcface}} & Thư mục gốc & \textbf{85,742} & $\sim$5,800,000 & Raw dataset ban đầu. \\
+\midrule
+\textbf{\texttt{dataset\_final}} & \texttt{train/} & \textbf{432} & -- & Huấn luyện nhanh/fine-tune domain nhỏ. \\
+\textit{(Dataset thu gọn)} & \texttt{val/} & \textbf{432} & -- & Kiểm nghiệm validation tập nhỏ. \\
+& \texttt{test/} & \textbf{108} & -- & Kiểm định One-Shot trên tập nhỏ. \\
+\cmidrule{2-5}
+& \textbf{Tổng cộng} & \textbf{540} & -- & Tổng hợp 540 danh tính thực nghiệm. \\
+\bottomrule
+\end{tabular}
+\caption{Bảng số liệu thống kê chi tiết các bộ dữ liệu trong không gian làm việc.}
+\end{table}
+
+\subsection{4 Nguyên tắc thiết kế dữ liệu sống còn}
+\begin{enumerate}
+    \item \textbf{Class-first Split:} Tập \texttt{test} (8,500 identities) hoàn toàn độc lập và không xuất hiện trong \texttt{train/val}, nhằm kiểm nghiệm chính xác năng lực One-Shot Face Verification trên người lạ.
+    \item \textbf{Shared Classes for Train/Val:} Vì ArcFace là bài toán phân loại trên 76,504 lớp, tập \texttt{val} bắt buộc phải chia sẻ đúng 76,504 nhãn với \texttt{train} (tách ra 20\% số ảnh mỗi người) để tính toán \texttt{val\_accuracy} trên ma trận $W$.
+    \item \textbf{Bộ lọc chống nhiễu (\texttt{min\_images = 5}):} Loại bỏ 738 danh tính có dưới 5 ảnh để tránh làm lệch đạo hàm góc của các lớp thiếu mẫu.
+    \item \textbf{Symlinks tiết kiệm bộ nhớ:} Sử dụng symbolic links trỏ về dữ liệu gốc giúp tiết kiệm hơn \textbf{50GB} dung lượng ổ cứng.
+\end{enumerate}
+
+\end{document}
