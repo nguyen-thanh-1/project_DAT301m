@@ -48,6 +48,10 @@ def warmup_models():
     print("🔄 Đang warmup iResNet50...")
     dummy_face = np.zeros((1, 112, 112, 3), dtype=np.float32)
     model.predict(dummy_face, verbose=0)
+    
+    from be.services.anti_spoof_service import warmup_anti_spoof_models
+    warmup_anti_spoof_models()
+    
     print("✅ Warmup hoàn tất!")
 
 def align_and_crop(img: np.ndarray, face: Dict[str, Any], img_size: int = 112) -> np.ndarray:
@@ -81,12 +85,13 @@ def align_and_crop(img: np.ndarray, face: Dict[str, Any], img_size: int = 112) -
     face_img = (face_img.astype(np.float32) - 127.5) / 128.0
     return face_img
 
-def process_attendance_frame(img_bytes: bytes) -> Tuple[List[Dict[str, int]], np.ndarray]:
+def process_attendance_frame(img_bytes: bytes, return_rgb_image: bool = False) -> Any:
     """
     Detects all faces in an image bytes array.
     Returns:
         bboxes: List of bounding boxes [{"x": x, "y": y, "w": w, "h": h}, ...]
         faces_tensor: numpy array of shape (N, 112, 112, 3) ready for model inference
+        (Optional) img_np: Original RGB numpy image if return_rgb_image is True
     """
     image = Image.open(io.BytesIO(img_bytes))
     image = image.convert("RGB")
@@ -117,9 +122,13 @@ def process_attendance_frame(img_bytes: bytes) -> Tuple[List[Dict[str, int]], np
             face_crops.append(cropped)
             
     if len(face_crops) == 0:
+        if return_rgb_image:
+            return [], np.array([]), img_np
         return [], np.array([])
         
     faces_tensor = np.stack(face_crops, axis=0)
+    if return_rgb_image:
+        return bboxes, faces_tensor, img_np
     return bboxes, faces_tensor
 
 def extract_embeddings(faces_tensor: np.ndarray) -> np.ndarray:
