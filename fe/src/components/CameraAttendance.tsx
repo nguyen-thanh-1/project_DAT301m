@@ -3,6 +3,7 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import Webcam from 'react-webcam';
 import { Camera, UserCheck, Loader2, Upload, X, Maximize, Minimize, Video, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { getApiBaseUrl } from '@/lib/api';
 
 interface BBox {
   x: number;
@@ -100,7 +101,7 @@ export default function CameraAttendance() {
     formData.append('num_images', numImages.toString());
     formData.append('check_spoof', enableAntiSpoof ? 'true' : 'false');
 
-    const res = await fetch('http://localhost:8000/api/attendance', {
+    const res = await fetch(`${getApiBaseUrl()}/api/attendance`, {
       method: 'POST',
       body: formData,
     });
@@ -140,7 +141,7 @@ export default function CameraAttendance() {
           formData.append('threshold', '0.5');
           formData.append('check_spoof', enableAntiSpoof ? 'true' : 'false');
 
-          const res = await fetch('http://localhost:8000/api/attendance/dual', {
+          const res = await fetch(`${getApiBaseUrl()}/api/attendance/dual`, {
             method: 'POST',
             body: formData,
           });
@@ -255,7 +256,7 @@ export default function CameraAttendance() {
         formData.append('num_images', numImages.toString());
         formData.append('check_spoof', enableAntiSpoof ? 'true' : 'false');
 
-        const res = await fetch('http://localhost:8000/api/attendance', {
+        const res = await fetch(`${getApiBaseUrl()}/api/attendance`, {
           method: 'POST',
           body: formData,
         });

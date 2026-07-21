@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Upload, Users, Image as ImageIcon, CheckCircle, AlertCircle, Loader2, Trash2 } from 'lucide-react';
+import { getApiBaseUrl } from '@/lib/api';
 
 interface Anchor {
   id: string;
@@ -19,7 +20,7 @@ export default function AnchorManager() {
 
   const fetchAnchors = async (retries = 5) => {
     try {
-      const res = await fetch('http://localhost:8000/api/anchors');
+      const res = await fetch(`${getApiBaseUrl()}/api/anchors`);
       if (!res.ok) throw new Error("API not ready");
       const data = await res.json();
       setAnchors(data.anchors || []);
@@ -60,7 +61,7 @@ export default function AnchorManager() {
     setStatus({ type: '', msg: '' });
     
     try {
-      const res = await fetch(`http://localhost:8000/api/anchors/${id}`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/anchors/${id}`, {
         method: 'DELETE',
       });
       
@@ -83,7 +84,7 @@ export default function AnchorManager() {
     setStatus({ type: '', msg: '' });
     
     try {
-      const res = await fetch(`http://localhost:8000/api/anchors/${userId}/images/${imageIndex}`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/anchors/${userId}/images/${imageIndex}`, {
         method: 'DELETE',
       });
       
@@ -113,7 +114,7 @@ export default function AnchorManager() {
     formData.append('image', file);
     
     try {
-      const res = await fetch(`http://localhost:8000/api/anchors/${userId}/images`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/anchors/${userId}/images`, {
         method: 'POST',
         body: formData,
       });
@@ -148,7 +149,7 @@ export default function AnchorManager() {
     files.forEach(f => formData.append('images', f));
 
     try {
-      const res = await fetch('http://localhost:8000/api/anchors/upload', {
+      const res = await fetch(`${getApiBaseUrl()}/api/anchors/upload`, {
         method: 'POST',
         body: formData,
       });
@@ -296,7 +297,7 @@ export default function AnchorManager() {
                       {a.image_urls.map((url, idx) => (
                         <div key={idx} className="relative group">
                           <img 
-                            src={`http://localhost:8000${url}`} 
+                            src={`${getApiBaseUrl()}${url}`} 
                             alt={`${a.name} ${idx + 1}`} 
                             className="w-16 h-16 object-cover rounded-md border border-slate-600"
                           />

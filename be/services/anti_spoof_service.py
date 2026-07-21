@@ -49,14 +49,14 @@ def warmup_anti_spoof_models():
     model_c(dummy_input, training=False)
     print("✅ Warmup Anti-Spoofing hoàn tất!")
 
-def check_face_spoof(img_rgb: np.ndarray, bbox: Dict[str, Any], thresh_val: float = 0.50) -> Tuple[bool, float, str]:
+def check_face_spoof(img_rgb: np.ndarray, bbox: Dict[str, Any], thresh_val: float = 0.70) -> Tuple[bool, float, str]:
     """
     Kiểm tra tính xác thực (Thật / Giả mạo) cho một khuôn mặt trong ảnh RGB.
     
     Args:
         img_rgb: Ảnh gốc định dạng numpy array RGB (H, W, 3)
         bbox: Bounding box của mặt {"x": x, "y": y, "w": w, "h": h}
-        thresh_val: Ngưỡng xác định mặt thật (mặc định 0.50)
+        thresh_val: Ngưỡng xác định mặt thật (mặc định 0.70)
         
     Returns:
         is_real (bool): True nếu là mặt thật, False nếu giả mạo.
