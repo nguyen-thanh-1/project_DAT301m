@@ -2,7 +2,8 @@
 
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import Webcam from 'react-webcam';
-import { Camera, UserCheck, Loader2, Upload, X, Maximize, Minimize, Video } from 'lucide-react';
+import { Camera, UserCheck, Loader2, Upload, X, Maximize, Minimize, Video, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { getApiBaseUrl } from '@/lib/api';
 
 interface BBox {
   x: number;
@@ -19,6 +20,8 @@ interface AttendanceResult {
   avg_score?: number;
   score_cam1?: number;
   score_cam2?: number;
+  is_real?: boolean;
+  spoof_prob?: number;
 }
 
 export default function CameraAttendance() {
@@ -35,6 +38,7 @@ export default function CameraAttendance() {
 
   const [method, setMethod] = useState<'one_shot' | 'mean' | 'average_cosine'>('mean');
   const [numImages, setNumImages] = useState<number>(3);
+  const [enableAntiSpoof, setEnableAntiSpoof] = useState<boolean>(true); // Mặc định bật chế độ chống giả mạo
   
   const [results1, setResults1] = useState<AttendanceResult[]>([]);
   const [results2, setResults2] = useState<AttendanceResult[]>([]);
@@ -95,8 +99,9 @@ export default function CameraAttendance() {
     formData.append('image', blob, 'frame.jpg');
     formData.append('method', method);
     formData.append('num_images', numImages.toString());
+    formData.append('check_spoof', enableAntiSpoof ? 'true' : 'false');
 
-    const res = await fetch('http://localhost:8000/api/attendance', {
+    const res = await fetch(`${getApiBaseUrl()}/api/attendance`, {
       method: 'POST',
       body: formData,
     });
@@ -134,8 +139,9 @@ export default function CameraAttendance() {
           formData.append('method', method);
           formData.append('num_images', numImages.toString());
           formData.append('threshold', '0.5');
+          formData.append('check_spoof', enableAntiSpoof ? 'true' : 'false');
 
-          const res = await fetch('http://localhost:8000/api/attendance/dual', {
+          const res = await fetch(`${getApiBaseUrl()}/api/attendance/dual`, {
             method: 'POST',
             body: formData,
           });
@@ -164,7 +170,7 @@ export default function CameraAttendance() {
     } finally {
       setIsLoading(false);
     }
-  }, [method, numImages, uploadedImageSrc, isDualMode, cam2Error, devices.length]);
+  }, [method, numImages, uploadedImageSrc, isDualMode, cam2Error, devices.length, enableAntiSpoof]);
 
   const drawBoundingBoxes = (canvas: HTMLCanvasElement | null, resList: AttendanceResult[]) => {
     if (!canvas) return;
@@ -176,23 +182,36 @@ export default function CameraAttendance() {
     resList.forEach((res) => {
       const { x, y, w, h } = res.bbox;
       
+      const isSpoof = res.is_real === false || res.name.startsWith("Cảnh báo:");
+      const isUnknown = res.name.startsWith("Unknown");
+
       // Draw box
-      ctx.strokeStyle = !res.name.startsWith("Unknown") ? '#22c55e' : '#ef4444';
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = isSpoof ? '#ef4444' : (!isUnknown ? '#22c55e' : '#eab308');
+      ctx.lineWidth = isSpoof ? 4 : 3;
       ctx.strokeRect(x, y, w, h);
       
-      // Draw label background
-      ctx.fillStyle = !res.name.startsWith("Unknown") ? '#22c55e' : '#ef4444';
-      const label = res.avg_score !== undefined 
-        ? `${res.name} (TB: ${res.avg_score.toFixed(2)})` 
-        : `${res.name} (${res.score.toFixed(2)})`;
-      ctx.font = '16px Arial';
+      // Draw label background and text
+      let label = res.name;
+      if (isSpoof) {
+        label = `❌ GIẢ MẠO (${((1 - (res.spoof_prob ?? 0)) * 100).toFixed(0)}%)`;
+      } else if (res.is_real === true && res.spoof_prob !== undefined) {
+        const spoofTag = `🛡️ Thật (${(res.spoof_prob * 100).toFixed(0)}%)`;
+        label = res.avg_score !== undefined 
+          ? `${res.name} | ${spoofTag} (TB: ${res.avg_score.toFixed(2)})` 
+          : `${res.name} | ${spoofTag} (${res.score.toFixed(2)})`;
+      } else {
+        label = res.avg_score !== undefined 
+          ? `${res.name} (TB: ${res.avg_score.toFixed(2)})` 
+          : `${res.name} (${res.score.toFixed(2)})`;
+      }
+
+      ctx.fillStyle = isSpoof ? '#ef4444' : (!isUnknown ? '#22c55e' : '#eab308');
+      ctx.font = isSpoof ? 'bold 16px Arial' : '16px Arial';
       const textWidth = ctx.measureText(label).width;
-      ctx.fillRect(x, y > 20 ? y - 25 : y, textWidth + 10, 25);
+      ctx.fillRect(x, y > 24 ? y - 28 : y, textWidth + 12, 28);
       
-      // Draw text
       ctx.fillStyle = '#ffffff';
-      ctx.fillText(label, x + 5, y > 20 ? y - 7 : y + 17);
+      ctx.fillText(label, x + 6, y > 24 ? y - 8 : y + 20);
     });
   };
 
@@ -235,8 +254,9 @@ export default function CameraAttendance() {
         formData.append('image', file);
         formData.append('method', method);
         formData.append('num_images', numImages.toString());
+        formData.append('check_spoof', enableAntiSpoof ? 'true' : 'false');
 
-        const res = await fetch('http://localhost:8000/api/attendance', {
+        const res = await fetch(`${getApiBaseUrl()}/api/attendance`, {
           method: 'POST',
           body: formData,
         });
@@ -443,6 +463,19 @@ export default function CameraAttendance() {
                 >
                   <span>{isDualMode ? '🔴 2 Camera (Song Song)' : '⚪ 1 Camera'}</span>
                 </button>
+
+                <button
+                  onClick={() => setEnableAntiSpoof(!enableAntiSpoof)}
+                  className={`px-5 py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2 shadow-md border ${
+                    enableAntiSpoof 
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500 shadow-emerald-900/30' 
+                      : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border-slate-600'
+                  }`}
+                  title="Chống giả mạo bằng ảnh/màn hình trước khi nhận diện"
+                >
+                  {enableAntiSpoof ? <ShieldCheck className="w-5 h-5" /> : <ShieldAlert className="w-5 h-5" />}
+                  <span>{enableAntiSpoof ? '🛡️ Anti-Face: BẬT' : '🛡️ Anti-Face: TẮT'}</span>
+                </button>
               </>
             )}
           </div>
@@ -494,6 +527,24 @@ export default function CameraAttendance() {
               <p className="text-xs text-slate-500 mt-2">
                 * Ngưỡng: 0.57 (One-shot), 0.56 (TB Embedding), 0.50 (TB Cosine)
               </p>
+
+              <div className="pt-3 border-t border-slate-700">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <span className="text-sm font-medium text-slate-300 flex items-center gap-1.5">
+                    {enableAntiSpoof ? <ShieldCheck className="w-4 h-4 text-emerald-400" /> : <ShieldAlert className="w-4 h-4 text-slate-400" />}
+                    Chống Giả Mạo (Anti-Face)
+                  </span>
+                  <input 
+                    type="checkbox" 
+                    checked={enableAntiSpoof} 
+                    onChange={(e) => setEnableAntiSpoof(e.target.checked)}
+                    className="w-4 h-4 text-emerald-600 bg-slate-700 border-slate-600 rounded focus:ring-emerald-500 focus:ring-2"
+                  />
+                </label>
+                <p className="text-xs text-slate-500 mt-1">
+                  Kiểm tra giả mạo (ảnh chụp, màn hình) trước khi xác nhận và định danh.
+                </p>
+              </div>
             </div>
           </div>
           
@@ -514,10 +565,17 @@ export default function CameraAttendance() {
                 <p className="text-sm text-slate-400 italic text-center py-6">Chưa có dữ liệu điểm danh</p>
               ) : (
                 <ul className="space-y-2">
-                  {combinedResults.filter(r => !r.name.startsWith("Unknown")).map((r, i) => (
+                  {combinedResults.filter(r => !r.name.startsWith("Unknown") && !r.name.startsWith("Cảnh báo:") && r.is_real !== false).map((r, i) => (
                     <li key={i} className="flex justify-between items-center bg-slate-700/50 hover:bg-slate-700 py-2 px-3 rounded-md transition border-l-4 border-green-500">
                       <div className="flex flex-col">
-                        <span className="font-medium text-slate-200 text-sm">{r.name}</span>
+                        <span className="font-medium text-slate-200 text-sm flex items-center gap-1.5">
+                          {r.name}
+                          {r.is_real === true && r.spoof_prob !== undefined && (
+                            <span className="text-[10px] bg-emerald-900/70 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-600/50">
+                              🛡️ Thật {(r.spoof_prob * 100).toFixed(0)}%
+                            </span>
+                          )}
+                        </span>
                         {r.score_cam1 !== undefined && r.score_cam2 !== undefined ? (
                           <span className="text-[11px] text-purple-300">
                             ⚡ TB 2 Cam: Cam1 ({r.score_cam1.toFixed(2)}) + Cam2 ({r.score_cam2.toFixed(2)})
@@ -533,7 +591,28 @@ export default function CameraAttendance() {
                   ))}
                   
                   {(() => {
-                    const unknowns = combinedResults.filter(r => r.name.startsWith("Unknown"));
+                    const spoofs = combinedResults.filter(r => r.is_real === false || r.name.startsWith("Cảnh báo:"));
+                    if (spoofs.length === 0) return null;
+                    
+                    return spoofs.map((s, i) => (
+                      <li key={`spoof-${i}`} className="flex justify-between items-center bg-red-950/40 border border-red-600/60 py-2 px-3 rounded-md mt-2 border-l-4 border-red-500 animate-pulse">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-red-400 text-sm flex items-center gap-1.5">
+                            ❌ PHÁT HIỆN GIẢ MẠO
+                          </span>
+                          <span className="text-[11px] text-red-300/80">
+                            {s.cam || 'Cam 1'} | Độ tin cậy giả: {((1 - (s.spoof_prob ?? 0)) * 100).toFixed(1)}%
+                          </span>
+                        </div>
+                        <span className="text-xs font-mono bg-red-900/80 text-white px-2 py-1 rounded font-semibold">
+                          BỊ CHẶN
+                        </span>
+                      </li>
+                    ));
+                  })()}
+
+                  {(() => {
+                    const unknowns = combinedResults.filter(r => r.name.startsWith("Unknown") && r.is_real !== false);
                     if (unknowns.length === 0) return null;
                     
                     const groupedUnknowns = unknowns.reduce((acc, curr) => {
@@ -545,14 +624,14 @@ export default function CameraAttendance() {
                     return Object.entries(groupedUnknowns).map(([uKey, count], i) => {
                       const [uName, uCam] = uKey.split('___');
                       return (
-                        <li key={`u-${i}`} className="flex justify-between items-center bg-red-900/20 border border-red-900/50 py-2 px-3 rounded-md mt-2 border-l-4 border-red-500">
+                        <li key={`u-${i}`} className="flex justify-between items-center bg-yellow-900/20 border border-yellow-700/50 py-2 px-3 rounded-md mt-2 border-l-4 border-yellow-500">
                           <div className="flex flex-col">
-                            <span className="font-medium text-red-400 text-sm">
+                            <span className="font-medium text-yellow-400 text-sm">
                               {uName === "Unknown" ? "Không nhận dạng được" : uName.replace("Unknown ", "Không nhận dạng được ")}
                             </span>
-                            {uCam && <span className="text-[11px] text-red-300/70">{uCam}</span>}
+                            {uCam && <span className="text-[11px] text-yellow-300/70">{uCam}</span>}
                           </div>
-                          <span className="text-xs font-mono text-red-400">
+                          <span className="text-xs font-mono text-yellow-400">
                             {count} người
                           </span>
                         </li>

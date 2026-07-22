@@ -10,8 +10,8 @@ import shutil
 from contextlib import asynccontextmanager
 
 from be.services.face_service import process_attendance_frame, extract_embeddings, get_model, get_detector, warmup_models
-from be.services.face_service import process_attendance_frame, extract_embeddings, get_model, get_detector, warmup_models
 from be.services.anchor_store import register_anchor, get_all_anchors, identify_face, delete_anchor, load_store, add_image_to_anchor, remove_image_from_anchor, identify_face_dual
+from be.services.anti_spoof_service import check_face_spoof
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -198,44 +198,78 @@ async def delete_anchor_image(user_id: str, index: int):
     return {"status": "success"}
 
 @app.post("/api/attendance")
-async def process_attendance(image: UploadFile = File(...), method: str = Form("mean"), num_images: int = Form(3)):
+async def process_attendance(
+    image: UploadFile = File(...), 
+    method: str = Form("mean"), 
+    num_images: int = Form(3),
+    check_spoof: bool = Form(False)
+):
     if method not in ["one_shot", "mean", "average_cosine"]:
         raise HTTPException(status_code=400, detail="Invalid method. Use 'one_shot', 'mean' or 'average_cosine'.")
         
     img_bytes = await image.read()
     
-    bboxes, faces_tensor = process_attendance_frame(img_bytes)
+    if check_spoof:
+        bboxes, faces_tensor, img_np = process_attendance_frame(img_bytes, return_rgb_image=True)
+    else:
+        bboxes, faces_tensor = process_attendance_frame(img_bytes, return_rgb_image=False)
     
     if len(bboxes) == 0:
         return {"results": []}
         
-    # Extract embeddings for all detected faces in a single batch
-    embeddings = extract_embeddings(faces_tensor)
-    
     results = []
-    for i, bbox in enumerate(bboxes):
-        face_emb = embeddings[i]
-        name, score = identify_face(face_emb, method=method, num_images=num_images)
+    valid_indices = []
+    
+    if check_spoof:
+        for i, bbox in enumerate(bboxes):
+            is_real, prob_real, _ = check_face_spoof(img_np, bbox)
+            if not is_real:
+                results.append({
+                    "bbox": bbox,
+                    "name": "Cảnh báo: Giả Mạo (Spoof)",
+                    "score": 0.0,
+                    "is_real": False,
+                    "spoof_prob": prob_real
+                })
+            else:
+                valid_indices.append(i)
+                results.append({
+                    "bbox": bbox,
+                    "name": "Unknown",
+                    "score": 0.0,
+                    "is_real": True,
+                    "spoof_prob": prob_real
+                })
+    else:
+        valid_indices = list(range(len(bboxes)))
+        for bbox in bboxes:
+            results.append({
+                "bbox": bbox,
+                "name": "Unknown",
+                "score": 0.0
+            })
+            
+    if valid_indices:
+        valid_faces_tensor = faces_tensor[valid_indices]
+        embeddings = extract_embeddings(valid_faces_tensor)
         
-        results.append({
-            "bbox": bbox,
-            "name": name,
-            "score": score
-        })
+        for idx_in_valid, orig_idx in enumerate(valid_indices):
+            face_emb = embeddings[idx_in_valid]
+            name, score = identify_face(face_emb, method=method, num_images=num_images)
+            results[orig_idx]["name"] = name
+            results[orig_idx]["score"] = score
         
     # Post-processing for duplicate identities
-    # 1. Find the instance index with the maximum score for each recognized identity
     best_instances = {}
     for i, res in enumerate(results):
         name = res["name"]
-        if name != "Unknown":
+        if name not in ["Unknown", "Cảnh báo: Giả Mạo (Spoof)"] and not name.startswith("Cảnh báo:"):
             if name not in best_instances or res["score"] > results[best_instances[name]]["score"]:
                 best_instances[name] = i
                 
-    # 2. Mark duplicates as Unknown with specific tag
     for i, res in enumerate(results):
         name = res["name"]
-        if name != "Unknown" and i != best_instances.get(name):
+        if name not in ["Unknown", "Cảnh báo: Giả Mạo (Spoof)"] and not name.startswith("Cảnh báo:") and i != best_instances.get(name):
             res["name"] = f"Unknown [trùng {name}]"
             
     return {"results": results}
@@ -246,7 +280,8 @@ async def process_attendance_dual(
     image2: UploadFile = File(...), 
     method: str = Form("mean"), 
     num_images: int = Form(3),
-    threshold: float = Form(0.5)
+    threshold: float = Form(0.5),
+    check_spoof: bool = Form(False)
 ):
     if method not in ["one_shot", "mean", "average_cosine"]:
         raise HTTPException(status_code=400, detail="Invalid method. Use 'one_shot', 'mean' or 'average_cosine'.")
@@ -254,72 +289,147 @@ async def process_attendance_dual(
     img1_bytes = await image1.read()
     img2_bytes = await image2.read()
     
-    bboxes1, faces_tensor1 = process_attendance_frame(img1_bytes)
-    bboxes2, faces_tensor2 = process_attendance_frame(img2_bytes)
+    if check_spoof:
+        bboxes1, faces_tensor1, img_np1 = process_attendance_frame(img1_bytes, return_rgb_image=True)
+        bboxes2, faces_tensor2, img_np2 = process_attendance_frame(img2_bytes, return_rgb_image=True)
+    else:
+        bboxes1, faces_tensor1 = process_attendance_frame(img1_bytes, return_rgb_image=False)
+        bboxes2, faces_tensor2 = process_attendance_frame(img2_bytes, return_rgb_image=False)
     
     results_cam1 = []
     results_cam2 = []
     combined_results = []
     
+    spoof_info1 = []
+    spoof_info2 = []
+    
+    if check_spoof:
+        for bbox in bboxes1:
+            is_real, prob_real, _ = check_face_spoof(img_np1, bbox)
+            spoof_info1.append((is_real, prob_real))
+        for bbox in bboxes2:
+            is_real, prob_real, _ = check_face_spoof(img_np2, bbox)
+            spoof_info2.append((is_real, prob_real))
+    else:
+        spoof_info1 = [(True, 1.0)] * len(bboxes1)
+        spoof_info2 = [(True, 1.0)] * len(bboxes2)
+        
     # Trường hợp cả 2 camera đều phát hiện được khuôn mặt
     if len(bboxes1) > 0 and len(bboxes2) > 0:
-        embeddings1 = extract_embeddings(faces_tensor1)
-        embeddings2 = extract_embeddings(faces_tensor2)
+        is_real1, prob1 = spoof_info1[0]
+        is_real2, prob2 = spoof_info2[0]
         
-        # Ghép cặp khuôn mặt chính (index 0) của 2 camera để tính trung bình
-        name, avg_score, s1, s2 = identify_face_dual(embeddings1[0], embeddings2[0], method=method, num_images=num_images, threshold=threshold)
-        
-        res1 = {
-            "bbox": bboxes1[0],
-            "name": name if name != "Unknown" else "Unknown",
-            "score": s1,
-            "avg_score": avg_score,
-            "cam": "Cam 1 (Trái)"
-        }
-        res2 = {
-            "bbox": bboxes2[0],
-            "name": name if name != "Unknown" else "Unknown",
-            "score": s2,
-            "avg_score": avg_score,
-            "cam": "Cam 2 (Phải)"
-        }
-        results_cam1.append(res1)
-        results_cam2.append(res2)
-        
-        combined_results.append({
-            "name": name,
-            "score": avg_score,
-            "score_cam1": s1,
-            "score_cam2": s2,
-            "cam": "TB 2 Cam"
-        })
-        
-        # Xử lý các khuôn mặt phụ khác (nếu có) trong ảnh bằng nhận diện đơn lẻ
+        # Nếu khuôn mặt chính (index 0) bị giả mạo ở 1 trong 2 camera -> Chặn nhận diện
+        if not is_real1 or not is_real2:
+            res1 = {
+                "bbox": bboxes1[0],
+                "name": "Cảnh báo: Giả Mạo (Spoof)" if not is_real1 else "Unknown",
+                "score": 0.0,
+                "is_real": is_real1,
+                "spoof_prob": prob1,
+                "cam": "Cam 1 (Trái)"
+            }
+            res2 = {
+                "bbox": bboxes2[0],
+                "name": "Cảnh báo: Giả Mạo (Spoof)" if not is_real2 else "Unknown",
+                "score": 0.0,
+                "is_real": is_real2,
+                "spoof_prob": prob2,
+                "cam": "Cam 2 (Phải)"
+            }
+            results_cam1.append(res1)
+            results_cam2.append(res2)
+            combined_results.append({
+                "name": "Cảnh báo: Giả Mạo (Spoof)",
+                "score": 0.0,
+                "score_cam1": 0.0,
+                "score_cam2": 0.0,
+                "is_real": False,
+                "cam": "TB 2 Cam (Bị Chặn)"
+            })
+        else:
+            embeddings1 = extract_embeddings(faces_tensor1)
+            embeddings2 = extract_embeddings(faces_tensor2)
+            
+            name, avg_score, s1, s2 = identify_face_dual(embeddings1[0], embeddings2[0], method=method, num_images=num_images, threshold=threshold)
+            
+            res1 = {
+                "bbox": bboxes1[0],
+                "name": name if name != "Unknown" else "Unknown",
+                "score": s1,
+                "avg_score": avg_score,
+                "is_real": True,
+                "spoof_prob": prob1,
+                "cam": "Cam 1 (Trái)"
+            }
+            res2 = {
+                "bbox": bboxes2[0],
+                "name": name if name != "Unknown" else "Unknown",
+                "score": s2,
+                "avg_score": avg_score,
+                "is_real": True,
+                "spoof_prob": prob2,
+                "cam": "Cam 2 (Phải)"
+            }
+            results_cam1.append(res1)
+            results_cam2.append(res2)
+            combined_results.append({
+                "name": name,
+                "score": avg_score,
+                "score_cam1": s1,
+                "score_cam2": s2,
+                "is_real": True,
+                "cam": "TB 2 Cam"
+            })
+            
+        # Xử lý các khuôn mặt phụ khác (nếu có)
+        embeddings1_extracted = embeddings1 if (is_real1 and is_real2) else extract_embeddings(faces_tensor1)
         for i in range(1, len(bboxes1)):
-            emb = embeddings1[i]
-            n, s = identify_face(emb, method=method, num_images=num_images)
-            results_cam1.append({"bbox": bboxes1[i], "name": n, "score": s, "cam": "Cam 1 (Trái)"})
-            
+            is_r, p_r = spoof_info1[i]
+            if not is_r:
+                results_cam1.append({"bbox": bboxes1[i], "name": "Cảnh báo: Giả Mạo (Spoof)", "score": 0.0, "is_real": False, "spoof_prob": p_r, "cam": "Cam 1 (Trái)"})
+            else:
+                emb = embeddings1_extracted[i]
+                n, s = identify_face(emb, method=method, num_images=num_images)
+                results_cam1.append({"bbox": bboxes1[i], "name": n, "score": s, "is_real": True, "spoof_prob": p_r, "cam": "Cam 1 (Trái)"})
+                
+        embeddings2_extracted = embeddings2 if (is_real1 and is_real2) else extract_embeddings(faces_tensor2)
         for i in range(1, len(bboxes2)):
-            emb = embeddings2[i]
-            n, s = identify_face(emb, method=method, num_images=num_images)
-            results_cam2.append({"bbox": bboxes2[i], "name": n, "score": s, "cam": "Cam 2 (Phải)"})
-            
+            is_r, p_r = spoof_info2[i]
+            if not is_r:
+                results_cam2.append({"bbox": bboxes2[i], "name": "Cảnh báo: Giả Mạo (Spoof)", "score": 0.0, "is_real": False, "spoof_prob": p_r, "cam": "Cam 2 (Phải)"})
+            else:
+                emb = embeddings2_extracted[i]
+                n, s = identify_face(emb, method=method, num_images=num_images)
+                results_cam2.append({"bbox": bboxes2[i], "name": n, "score": s, "is_real": True, "spoof_prob": p_r, "cam": "Cam 2 (Phải)"})
+                
     elif len(bboxes1) > 0: # Chỉ Cam 1 thấy mặt
         embeddings1 = extract_embeddings(faces_tensor1)
         for i, bbox in enumerate(bboxes1):
-            n, s = identify_face(embeddings1[i], method=method, num_images=num_images)
-            res = {"bbox": bbox, "name": n, "score": s, "cam": "Cam 1 (Trái)"}
-            results_cam1.append(res)
-            combined_results.append({"name": n, "score": s, "cam": "Chỉ Cam 1"})
+            is_r, p_r = spoof_info1[i]
+            if not is_r:
+                res = {"bbox": bbox, "name": "Cảnh báo: Giả Mạo (Spoof)", "score": 0.0, "is_real": False, "spoof_prob": p_r, "cam": "Cam 1 (Trái)"}
+                results_cam1.append(res)
+                combined_results.append({"name": "Cảnh báo: Giả Mạo (Spoof)", "score": 0.0, "is_real": False, "cam": "Chỉ Cam 1 (Bị Chặn)"})
+            else:
+                n, s = identify_face(embeddings1[i], method=method, num_images=num_images)
+                res = {"bbox": bbox, "name": n, "score": s, "is_real": True, "spoof_prob": p_r, "cam": "Cam 1 (Trái)"}
+                results_cam1.append(res)
+                combined_results.append({"name": n, "score": s, "is_real": True, "cam": "Chỉ Cam 1"})
             
     elif len(bboxes2) > 0: # Chỉ Cam 2 thấy mặt
         embeddings2 = extract_embeddings(faces_tensor2)
         for i, bbox in enumerate(bboxes2):
-            n, s = identify_face(embeddings2[i], method=method, num_images=num_images)
-            res = {"bbox": bbox, "name": n, "score": s, "cam": "Cam 2 (Phải)"}
-            results_cam2.append(res)
-            combined_results.append({"name": n, "score": s, "cam": "Chỉ Cam 2"})
+            is_r, p_r = spoof_info2[i]
+            if not is_r:
+                res = {"bbox": bbox, "name": "Cảnh báo: Giả Mạo (Spoof)", "score": 0.0, "is_real": False, "spoof_prob": p_r, "cam": "Cam 2 (Phải)"}
+                results_cam2.append(res)
+                combined_results.append({"name": "Cảnh báo: Giả Mạo (Spoof)", "score": 0.0, "is_real": False, "cam": "Chỉ Cam 2 (Bị Chặn)"})
+            else:
+                n, s = identify_face(embeddings2[i], method=method, num_images=num_images)
+                res = {"bbox": bbox, "name": n, "score": s, "is_real": True, "spoof_prob": p_r, "cam": "Cam 2 (Phải)"}
+                results_cam2.append(res)
+                combined_results.append({"name": n, "score": s, "is_real": True, "cam": "Chỉ Cam 2"})
             
     return {
         "results_cam1": results_cam1,
